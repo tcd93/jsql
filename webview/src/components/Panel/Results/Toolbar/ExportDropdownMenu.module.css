@@ -1,0 +1,17 @@
+@import "../ContextMenu.module.css";
+
+.rowCountInput {
+  background: var(--vscode-input-background, #3c3c3c);
+  color: var(--vscode-input-foreground, #cccccc);
+  border: 1px solid var(--vscode-input-border, #555);
+  text-align: center;
+  field-sizing: content;
+  max-width: 35px;
+  height: 20px;
+  padding: 0;
+}
+
+.rowCountInput:focus {
+  outline: 1px solid var(--vscode-focusBorder, #007acc);
+  outline-offset: -1px;
+}

@@ -1,0 +1,230 @@
+{
+  "name": "jsql-extension",
+  "displayName": "JSQL Editor",
+  "description": "Advanced SQL editor with SQL Server integration",
+  "version": "0.1.0",
+  "publisher": "jiiiyung",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tcd93/dremio_demo.git"
+  },
+  "engines": {
+    "vscode": "^1.99.1"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "sql",
+    "database",
+    "query",
+    "sqlserver"
+  ],
+  "activationEvents": [
+    "onLanguage:sql",
+    "workspaceContains:**/*.j.sql",
+    "workspaceContains:**/*.sql"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "jSql.openEditor",
+        "title": "New JSQL Query Editor",
+        "category": "JSQL",
+        "icon": "$(file-code)"
+      },
+      {
+        "command": "jSql.executeAllQueries",
+        "title": "Execute All Queries",
+        "category": "JSQL",
+        "icon": "$(play)"
+      },
+      {
+        "command": "jSql.executeQueryAtCursor",
+        "title": "Execute Query at Cursor",
+        "category": "JSQL",
+        "icon": "$(play)"
+      },
+      {
+        "command": "jSql.cancelAllQueries",
+        "title": "Cancel All SQL Queries",
+        "category": "JSQL",
+        "icon": "$(stop)"
+      },
+      {
+        "command": "jSql.chooseConnection",
+        "title": "Choose SQL Connection",
+        "category": "JSQL",
+        "icon": "$(database)"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "jSql.executeQueryAtCursor",
+        "key": "ctrl+enter",
+        "when": "editorTextFocus && editorLangId == 'sql'"
+      },
+      {
+        "command": "jSql.executeQueryAtCursor",
+        "key": "shift+enter",
+        "when": "editorTextFocus && editorLangId == 'sql'"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "jSql.openEditor"
+        },
+        {
+          "command": "jSql.executeAllQueries",
+          "when": "jSqlEditorActive"
+        },
+        {
+          "command": "jSql.executeQueryAtCursor",
+          "when": "editorLangId == 'sql'"
+        },
+        {
+          "command": "jSql.cancelAllQueries",
+          "when": "jSqlEditorActive && jSqlQueryRunning"
+        },
+        {
+          "command": "jSql.chooseConnection",
+          "when": "jSqlEditorActive"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "jSql.executeAllQueries",
+          "when": "jSqlEditorActive && !jSqlQueryRunning",
+          "group": "navigation"
+        },
+        {
+          "command": "jSql.cancelAllQueries",
+          "when": "jSqlEditorActive && jSqlQueryRunning",
+          "group": "navigation"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "panel": [
+        {
+          "id": "jsql-query-results",
+          "title": "JSQL Query Results",
+          "icon": "$(database)"
+        }
+      ]
+    },
+    "views": {
+      "jsql-query-results": [
+        {
+          "id": "jsql-query-results-view",
+          "name": "JSQL Query Results",
+          "type": "webview",
+          "icon": "$(database)"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "JSQL",
+      "properties": {
+        "jSql.codeLens.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable CodeLens buttons above SQL statements. When enabled, clickable run buttons will appear above each SQL query for easy execution.",
+          "scope": "window"
+        },
+        "jSql.useCodeMirror": {
+          "type": "boolean",
+          "default": false,
+          "description": "Use CodeMirror for the SQL editor. If disabled, the default VS Code editor will be used.",
+          "scope": "window"
+        },
+        "jSql.providers": {
+          "type": "object",
+          "description": "Database provider configurations",
+          "scope": "resource",
+          "patternProperties": {
+            ".*": {
+              "type": "array",
+              "description": "Array of connections for this provider",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Connection name"
+                  },
+                  "host": {
+                    "type": "string",
+                    "description": "Server host"
+                  },
+                  "port": {
+                    "type": "number",
+                    "description": "Server port"
+                  },
+                  "username": {
+                    "type": "string",
+                    "description": "Username for authentication"
+                  },
+                  "password": {
+                    "type": "string",
+                    "description": "Password for authentication"
+                  },
+                  "serverSPN": {
+                    "type": "string",
+                    "description": "Windows SPN for Kerberos authentication"
+                  }
+                },
+                "required": [
+                  "name",
+                  "host"
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build:bridge": "dotnet build bridge/SqlServerBridge/SqlServerBridge.csproj -c Release -p:RuntimeIdentifier=win-x64 && dotnet build bridge/SqlServerBridge/SqlServerBridge.csproj -c Release -p:RuntimeIdentifier=linux-x64 && dotnet build bridge/SqlServerBridge/SqlServerBridge.csproj -c Release -p:RuntimeIdentifier=osx-x64",
+    "build": "npm run build:bridge && vite build && (cd webview && npm run build)",
+    "clean": "rimraf out",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "lint": "eslint src --ext ts && cd webview && npm run lint",
+    "lint:fix": "eslint src --ext ts --fix && cd webview && npm run lint:fix",
+    "package": "vsce package",
+    "package:install": "npm run package && code --install-extension *.vsix"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "@types/node": "^25.0.3",
+    "@types/pg": "^8.16.0",
+    "@types/vscode": "^1.107.0",
+    "@typescript-eslint/eslint-plugin": "^8.52.0",
+    "@typescript-eslint/parser": "^8.52.0",
+    "@vitest/ui": "^4.0.16",
+    "@vscode/vsce": "^3.7.1",
+    "eslint": "^9.39.2",
+    "eslint-import-resolver-typescript": "^4.4.4",
+    "eslint-plugin-import": "^2.32.0",
+    "globals": "^17.0.0",
+    "rimraf": "^6.1.2",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.52.0",
+    "vite": "^7.3.1",
+    "vite-plugin-checker": "^0.12.0",
+    "vite-tsconfig-paths": "^6.0.3",
+    "vitest": "^4.0.16"
+  },
+  "dependencies": {
+    "@codemirror/lang-sql": "^6.10.0",
+    "exceljs": "^4.4.0",
+    "pg": "^8.16.3",
+    "pg-query-stream": "^4.10.3",
+    "uuid": "^13.0.0"
+  }
+}

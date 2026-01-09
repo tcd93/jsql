@@ -1,0 +1,7 @@
+@import "../ContextMenu.module.css";
+
+.checkbox {
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}

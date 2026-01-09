@@ -1,0 +1,24 @@
+@import "../Cell/Cell.common.module.css";
+
+.footerRow {
+  background: var(--vscode-list-activeSelectionBackground);
+  border-top: 2px solid var(--vscode-focusBorder);
+}
+
+.footerCell {
+  padding: 8px 12px;
+  border-right: 1px solid var(--vscode-panel-border);
+  border-bottom: 1px solid var(--vscode-panel-border);
+  background: var(--vscode-list-activeSelectionBackground);
+  color: var(--vscode-list-activeSelectionForeground);
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 600;
+  position: relative;
+  box-sizing: border-box;
+  margin: 0;
+  vertical-align: middle;
+}
+

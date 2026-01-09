@@ -1,0 +1,73 @@
+/* see .QueryTabList for the flex sibling relationship */
+.queryEditor {
+  flex: 1 0 var(--editor-height, 70%);
+  overflow: auto;
+  border-radius: 4px;
+  resize: vertical;
+  font-family: var(--vscode-editor-font-family, 'Consolas', 'Courier New', monospace);
+  font-size: var(--vscode-editor-font-size, 14px);
+}
+
+.queryEditor .cm-editor {
+  background: var(--vscode-editor-background);
+  color: var(--vscode-editor-foreground);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 4px;
+}
+
+.queryEditor .cm-focused {
+  outline: none;
+  border-color: var(--vscode-focusBorder);
+}
+
+.queryEditor .cm-content {
+  padding: 10px;
+  line-height: 1.4;
+}
+
+.queryEditor .cm-sql-hint {
+  color: var(--vscode-descriptionForeground);
+  font-style: italic;
+  margin-left: 8px;
+  font-size: 0.9em;
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* Completion icons styling */
+.queryEditor .cm-tooltip-autocomplete ul li[role="option"] {
+  padding: 4px 8px;
+  font-size: 13px;
+}
+
+.queryEditor .cm-completionIcon {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  margin-right: 6px;
+  vertical-align: text-top;
+}
+
+.queryEditor .cm-completionIcon-table::before {
+  content: "📊";
+}
+
+.queryEditor .cm-completionIcon-view::before {
+  content: "👁️";
+}
+
+.queryEditor .cm-completionIcon-column::before {
+  content: "🔤";
+}
+
+.queryEditor .cm-completionIcon-pk::before {
+  content: "🔑";
+}
+
+.queryEditor .cm-completionIcon-catalog::before {
+  content: "📁";
+}
+
+.queryEditor .cm-completionIcon-schema::before {
+  content: "📂";
+}

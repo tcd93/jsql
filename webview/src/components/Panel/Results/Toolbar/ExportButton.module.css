@@ -1,0 +1,98 @@
+.exportButton {
+  position: relative;
+  display: inline-flex;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.mainButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 8px;
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  border-radius: 4px 0 0 4px;
+  min-width: 28px;
+  height: 28px;
+}
+
+.mainButton:hover:not(.disabled) {
+  background: var(--vscode-button-hoverBackground);
+}
+
+.mainButton:focus {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 1px;
+}
+
+.dropdownToggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 4px;
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  border: none;
+  border-left: 1px solid rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-radius: 0 4px 4px 0;
+  min-width: 20px;
+  height: 28px;
+}
+
+.dropdownToggle:hover:not(.disabled) {
+  background: var(--vscode-button-hoverBackground);
+}
+
+.dropdownToggle:focus {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 1px;
+}
+
+.dropdownToggle.open {
+  background: var(--vscode-button-hoverBackground);
+}
+
+.disabled {
+  opacity: 0.5;
+  cursor: not-allowed !important;
+  pointer-events: none;
+}
+
+.icon {
+  font-size: 12px;
+}
+
+.chevronIcon {
+  font-size: 10px;
+  transition: transform 0.2s ease;
+}
+
+.dropdownToggle.open .chevronIcon {
+  transform: rotate(180deg);
+}
+
+.spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}

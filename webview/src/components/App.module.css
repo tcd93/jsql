@@ -1,0 +1,31 @@
+/* Main Editor Styles */
+.jSqlEditor {
+  height: 100vh;
+  background: var(--vscode-editor-background);
+  color: var(--vscode-editor-foreground);
+  font-family: var(--vscode-font-family);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Resize Handle */
+.resizeHandle {
+  height: 4px;
+  background: var(--vscode-panel-border);
+  cursor: row-resize;
+  border: none;
+  padding: 0;
+  margin: 0;
+  flex-shrink: 0;
+  transition: background-color 0.2s ease;
+}
+
+.resizeHandle:hover {
+  background: var(--vscode-focusBorder);
+  height: 6px;
+}
+
+.resizeHandle:active {
+  background: var(--vscode-focusBorder);
+}

@@ -1,0 +1,31 @@
+@import "../ContextMenu.module.css";
+
+.container {
+  position: relative;
+  display: inline-block;
+}
+
+.pinButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 4px 8px;
+  border: 1px solid var(--vscode-button-border);
+  border-radius: 2px;
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.1s;
+}
+
+.pinButton:hover {
+  background: var(--vscode-button-secondaryHoverBackground);
+}
+
+.pinButton.active {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+

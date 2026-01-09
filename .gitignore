@@ -1,0 +1,85 @@
+# Compiled output
+out/
+bridge/SqlServerBridge/bin
+bridge/SqlServerBridge/obj
+bridge/SqlServerBridge/SqlServerBridge.Tests/bin
+bridge/SqlServerBridge/SqlServerBridge.Tests/obj
+
+# Generated files (but keep manually created webview JS files)
+src/**/*.js
+src/**/*.js.map
+src/**/*.d.ts
+src/**/*.d.ts.map
+webview/store/*.js
+webview/store/*.js.map
+webview/store/*.d.ts
+webview/store/*.d.ts.map
+
+# Node modules
+node_modules/
+
+# VS Code settings (keep .vscode/tasks.json and .vscode/launch.json but ignore others)
+**/.vscode/settings.json
+**/.vscode/extensions.json
+**/.vscode/*.log
+
+# Build artifacts
+dist/
+build/
+
+# Package manager files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Environment files
+.env
+.env.local
+.env.production
+.env.development
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+*.swp
+*.swo
+*~
+
+# Log files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Coverage directory used by tools like istanbul
+coverage/
+
+# Dependency directories
+jspm_packages/
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Temporary folders
+tmp/
+temp/
+
+# Editor backup files
+*~
+*.bak
+*.tmp
+
+# Extension packaging
+*.vsix
+
+# Test results
+test-results/
+coverage/
+
+.vscode-test
+test-workspace/

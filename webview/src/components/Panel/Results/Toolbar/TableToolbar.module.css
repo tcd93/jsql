@@ -1,0 +1,140 @@
+/* Table Toolbar */
+.tableToolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--vscode-editor-background);
+  border-bottom: 1px solid var(--vscode-panel-border);
+  gap: 12px;
+}
+
+.leftSection {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.centerSection {
+  flex: 1;
+  display: flex;
+  min-width: 0;
+}
+
+.drillButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--vscode-button-border);
+  border-radius: 2px;
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  cursor: pointer;
+  transition: background-color 0.1s;
+}
+
+.drillButton:hover:not(:disabled) {
+  background: var(--vscode-button-hoverBackground);
+}
+
+.drillButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.drillIcon {
+  font-size: 14px;
+}
+
+.spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.selectionInfo {
+  display: flex;
+  flex-direction: column;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.cellCount {
+  font-weight: 500;
+}
+
+.columnCount {
+  font-style: italic;
+}
+
+.rightSection {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+}
+
+
+.stickyFooterButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--vscode-widget-border);
+  border-radius: 4px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-button-secondaryForeground);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.stickyFooterButton:hover {
+  background: var(--vscode-button-secondaryHoverBackground);
+  color: var(--vscode-button-foreground);
+  border-color: var(--vscode-focusBorder);
+}
+
+.stickyFooterButton.active {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  border-color: var(--vscode-focusBorder);
+}
+
+.stickyFooterButton .icon {
+  font-size: 12px;
+}
+
+input {
+  padding: 4px 8px;
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 2px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font-size: 12px;
+  height: 32px;
+  outline: none;
+}
+
+input:focus {
+  outline: 1px solid var(--vscode-focusBorder);
+  border-color: var(--vscode-focusBorder);
+}
+
+input::placeholder {
+  color: var(--vscode-input-placeholderForeground);
+}

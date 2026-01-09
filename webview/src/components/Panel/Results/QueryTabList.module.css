@@ -1,0 +1,109 @@
+/*see .QueryEditor for the flex sibling relationship*/
+.tabs {
+  flex: 0 1 var(--tabs-height, 30%);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.tabList {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: hidden;
+  background-color: var(--vscode-editorGroupHeader-tabsBackground);
+  border-bottom: 1px solid var(--vscode-tab-border);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  width: 100%;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border: 1px solid var(--vscode-tab-border);
+  border-bottom: none;
+  background-color: var(--vscode-tab-inactiveBackground);
+  color: var(--vscode-tab-inactiveForeground);
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  flex: 0 1 auto;
+  min-width: 60px;
+  max-width: 200px;
+  border-radius: 4px 4px 0 0;
+  transition: all 0.2s ease;
+  gap: 8px;
+}
+
+.tab:hover {
+  background-color: var(--vscode-tab-hoverBackground);
+  color: var(--vscode-tab-hoverForeground);
+}
+
+.tab:focus {
+  outline: none;
+}
+
+/* react-tabs specific classes */
+.tab[aria-selected="true"] {
+  background-color: var(--vscode-tab-activeBackground);
+  color: var(--vscode-tab-activeForeground);
+  border-bottom: 2px solid var(--vscode-tab-activeBorder);
+  z-index: 1;
+}
+
+.tabTitle {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 13px;
+  line-height: 1.2;
+
+  &.baseTab {
+    color: #00bcd4;
+    font-weight: 600;
+  }
+
+  &.comparisonTab {
+    color: #ff9800;
+    font-weight: 600;
+  }
+}
+
+.closeButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: none;
+  background: transparent;
+  color: var(--vscode-tab-inactiveForeground);
+  cursor: pointer;
+  border-radius: 2px;
+  font-size: 10px;
+  padding: 0;
+  transition: all 0.2s ease;
+  opacity: 0.7;
+}
+
+.closeButton:hover {
+  background-color: var(--vscode-toolbar-hoverBackground);
+  color: var(--vscode-tab-activeForeground);
+  opacity: 1;
+}
+
+/* Tab Panel Classes - copied from frontend logic */
+.activeTabPanel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.hiddenTabPanel {
+  display: none;
+}

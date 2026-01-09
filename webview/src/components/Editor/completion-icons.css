@@ -1,0 +1,70 @@
+/* Completion Icons for CodeMirror SQL Autocompletion */
+
+.cm-tooltip-autocomplete .cm-completionIcon {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  margin-right: 6px;
+  vertical-align: text-top;
+  text-align: center;
+  font-size: 12px;
+}
+
+.cm-tooltip-autocomplete .cm-completionIcon-table::before {
+  content: "📊";
+}
+
+.cm-tooltip-autocomplete .cm-completionIcon-view::before {
+  content: "👁️";
+}
+
+.cm-tooltip-autocomplete .cm-completionIcon-column::before {
+  content: "🔤";
+}
+
+.cm-tooltip-autocomplete .cm-completionIcon-pk::before {
+  content: "🔑";
+}
+
+.cm-tooltip-autocomplete .cm-completionIcon-catalog::before {
+  content: "📁";
+}
+
+.cm-tooltip-autocomplete .cm-completionIcon-schema::before {
+  content: "📂";
+}
+
+.cm-tooltip-autocomplete .cm-completionIcon-function::before {
+  content: "🔧";
+}
+
+.cm-tooltip-autocomplete .cm-completionIcon-keyword::before {
+  content: "⚡";
+}
+
+.cm-tooltip-autocomplete .cm-completionIcon-variable::before {
+  content: "📝";
+}
+
+.cm-tooltip-autocomplete .cm-completionIcon-type::before {
+  content: "🏷️";
+}
+
+/* Completion Item Styling */
+.cm-tooltip-autocomplete ul li[role="option"] {
+  padding: 4px 8px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+}
+
+.cm-tooltip-autocomplete .cm-completionDetail {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  opacity: 0.8;
+}
+
+.cm-tooltip-autocomplete .cm-completionLabel {
+  color: var(--vscode-editor-foreground);
+}

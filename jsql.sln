@@ -1,0 +1,39 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "bridge", "bridge", "{68BF4094-9419-05A7-776B-98D5B493D877}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SqlServerBridge", "bridge\SqlServerBridge\SqlServerBridge.csproj", "{A5016865-3AAA-9668-4B5A-D9160E894262}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SqlServerBridge (1)", "SqlServerBridge (1)", "{D2568347-3021-1631-DF75-2375C3A2C65F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SqlServerBridge.Tests", "bridge\SqlServerBridge\SqlServerBridge.Tests\SqlServerBridge.Tests.csproj", "{E91A6984-8096-38C9-4F87-026667747948}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A5016865-3AAA-9668-4B5A-D9160E894262}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A5016865-3AAA-9668-4B5A-D9160E894262}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A5016865-3AAA-9668-4B5A-D9160E894262}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A5016865-3AAA-9668-4B5A-D9160E894262}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E91A6984-8096-38C9-4F87-026667747948}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E91A6984-8096-38C9-4F87-026667747948}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E91A6984-8096-38C9-4F87-026667747948}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E91A6984-8096-38C9-4F87-026667747948}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{A5016865-3AAA-9668-4B5A-D9160E894262} = {68BF4094-9419-05A7-776B-98D5B493D877}
+		{D2568347-3021-1631-DF75-2375C3A2C65F} = {68BF4094-9419-05A7-776B-98D5B493D877}
+		{E91A6984-8096-38C9-4F87-026667747948} = {D2568347-3021-1631-DF75-2375C3A2C65F}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {445BD9FD-B284-4C7E-8B1B-579D9C248367}
+	EndGlobalSection
+EndGlobal

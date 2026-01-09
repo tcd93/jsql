@@ -1,0 +1,56 @@
+/* Import common cell styles */
+@import "./Cell.common.module.css";
+
+/* Data Cell specific styles */
+
+.selectedCell {
+  background: var(--vscode-list-activeSelectionBackground) !important;
+  color: var(--vscode-list-activeSelectionForeground) !important;
+}
+
+.anchorCell {
+  outline: 2px solid var(--vscode-focusBorder);
+  outline-offset: -2px;
+}
+
+.differentCell {
+  background-color: rgba(210, 20, 20, 0.3) !important;
+  border: 1px solid rgba(210, 20, 20, 0.2);
+}
+
+.differentCell:hover {
+  background-color: rgba(230, 0, 0, 0.4) !important;
+}
+
+.groupedCell {
+  background-color: var(--vscode-list-hoverBackground);
+  font-weight: bold;
+}
+
+.groupContainer {
+  display: flex;
+  align-items: center;
+}
+
+.expandButton {
+  cursor: pointer;
+  margin-right: 4px;
+  background: none;
+  border: none;
+  color: inherit;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  font-size: 10px;
+}
+
+.groupCount {
+  margin-left: 4px;
+  opacity: 0.7;
+  font-weight: normal;
+}
+
+.nullValue {
+  color: var(--vscode-editorGutter-commentRangeForeground);
+  font-style: italic;
+}

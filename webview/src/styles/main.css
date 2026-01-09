@@ -1,0 +1,58 @@
+/* Global styles only - component-specific styles are now in CSS modules */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--vscode-font-family);
+  background: var(--vscode-editor-background);
+  color: var(--vscode-editor-foreground);
+}
+
+/* Only keep shared/global utility classes here */
+
+/* SQL Hint styles */
+.sql-hint {
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+  font-style: italic;
+  opacity: 0.8;
+  pointer-events: none;
+  user-select: none;
+  padding: 2px 16px;
+}
+
+.sql-block-highlight {
+  background-color: rgba(16, 141, 141, 0.2);
+  border-radius: 2px;
+}
+
+.error-boundary {
+  padding: 20px;
+  color: red;
+}
+
+/* Global scrollbar styles */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--vscode-scrollbarSlider-background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--vscode-scrollbarSlider-background);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--vscode-scrollbarSlider-hoverBackground);
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: var(--vscode-scrollbarSlider-activeBackground);
+}

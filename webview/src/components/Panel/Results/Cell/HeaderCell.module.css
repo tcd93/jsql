@@ -1,0 +1,75 @@
+/* Import common cell styles */
+@import "./Cell.common.module.css";
+
+/* Header Cell specific styles */
+.header {
+  display: flex;
+
+  justify-content: space-between;
+  background-color: var(--vscode-list-inactiveSelectionBackground);
+
+  &.sorted {
+    background-color: var(--vscode-list-activeSelectionBackground) !important;
+  }
+
+  &.pinned {
+    z-index: 20;
+    background-color: var(--vscode-list-inactiveSelectionBackground) !important;
+  }
+
+  &.dragOver {
+    background-color: var(--vscode-list-hoverBackground);
+    border-left: 2px solid var(--vscode-focusBorder);
+    border-right: 2px solid var(--vscode-focusBorder);
+    box-shadow: inset 0 0 8px rgba(0, 122, 204, 0.2);
+  }
+
+  .headerContent {
+    flex: 0 1 auto;
+    font-weight: 600;
+    text-align: left;
+    padding: 8px 4px 8px 12px;
+    min-width: 0;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
+  .iconContainer {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    overflow: visible;
+    gap: 4px;
+
+    .aggregationIcon {
+      opacity: 0.7;
+      width: 8px;
+      cursor: pointer;
+    }
+
+    .sortIcon {
+      opacity: 0.7;
+      width: 8px;
+      cursor: pointer;
+    }
+
+    .resizer {
+      background: transparent;
+      width: 8px;
+      align-self: stretch;
+      cursor: col-resize;
+      transition: background 0.2s;
+    }
+
+    .resizer:hover {
+      opacity: 1;
+      background: var(--vscode-focusBorder);
+    }
+
+    .resizer:focus {
+      opacity: 1;
+      background: var(--vscode-focusBorder);
+    }
+  }
+}

@@ -1,0 +1,178 @@
+.comparisonControls {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-right: 8px;
+}
+
+.controlButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--vscode-widget-border);
+  border-radius: 4px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-button-secondaryForeground);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.controlButton:hover {
+  background: var(--vscode-button-secondaryHoverBackground);
+  color: var(--vscode-button-foreground);
+  border-color: var(--vscode-focusBorder);
+}
+
+.controlButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: var(--vscode-input-background);
+  color: var(--vscode-disabledForeground);
+}
+
+.controlButton:disabled:hover {
+  background: var(--vscode-input-background);
+  color: var(--vscode-disabledForeground);
+  border-color: var(--vscode-widget-border);
+}
+
+.setBaseButton {
+  color: var(--vscode-charts-green);
+}
+
+.setBaseButton:hover {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+.compareButton {
+  color: var(--vscode-charts-blue);
+}
+
+.compareButton:hover {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+.clearButton {
+  color: var(--vscode-charts-red);
+}
+
+.clearButton:hover {
+  background: var(--vscode-errorForeground);
+  color: var(--vscode-editor-background);
+}
+
+.icon {
+  font-size: 12px;
+}
+
+/* Tooltip styles */
+.comparisonInfoIcon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--vscode-widget-border);
+  border-radius: 4px;
+  background: var(--vscode-input-background);
+  cursor: pointer;
+  margin-right: 8px;
+  transition: all 0.2s;
+}
+
+.comparisonInfoIcon:hover {
+  background: var(--vscode-button-secondaryHoverBackground);
+  border-color: var(--vscode-focusBorder);
+}
+
+.comparisonInfoIcon:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: var(--vscode-input-background);
+}
+
+.comparisonInfoIcon:disabled:hover {
+  background: var(--vscode-input-background);
+  border-color: var(--vscode-widget-border);
+}
+
+.comparisonInfoIcon:disabled .infoIcon {
+  color: var(--vscode-disabledForeground);
+}
+
+.comparisonInfoIcon:disabled:hover .infoIcon {
+  color: var(--vscode-disabledForeground);
+}
+
+.infoIcon {
+  color: var(--vscode-charts-blue);
+  font-size: 12px;
+  transition: color 0.2s;
+}
+
+.comparisonInfoIcon:hover .infoIcon {
+  color: var(--vscode-button-foreground);
+}
+
+.comparisonTooltip {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
+  background: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-widget-border);
+  border-radius: 4px;
+  padding: 12px;
+  min-width: 300px;
+  max-width: 400px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  z-index: 1000;
+  font-size: 12px;
+  color: var(--vscode-editor-foreground);
+}
+
+.tooltipHeader {
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--vscode-charts-orange);
+  border-bottom: 1px solid var(--vscode-widget-border);
+  padding-bottom: 4px;
+}
+
+.tooltipStats {
+  margin-bottom: 8px;
+}
+
+.statRow {
+  margin: 4px 0;
+}
+
+.statRow strong {
+  color: var(--vscode-charts-red);
+}
+
+.tooltipSection {
+  margin-top: 8px;
+  padding-top: 4px;
+  border-top: 1px solid var(--vscode-widget-border);
+}
+
+.sectionTitle {
+  font-weight: 500;
+  margin-bottom: 4px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+}
+
+.columnList {
+  font-family: var(--vscode-editor-font-family);
+  font-size: 11px;
+  color: var(--vscode-editor-foreground);
+  line-height: 1.4;
+  word-break: break-word;
+}

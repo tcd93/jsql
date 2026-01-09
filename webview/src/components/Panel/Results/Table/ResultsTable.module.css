@@ -1,0 +1,54 @@
+.resultsTable {
+  background-color: var(--vscode-editor-background);
+  border-radius: 5px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  overflow: auto;
+  flex-basis: 90%;
+}
+
+.resultsTable:focus {
+  outline: none;
+}
+
+.nullValue {
+  color: var(--vscode-editorGutter-commentRangeForeground);
+  font-style: italic;
+}
+
+/* 
+table-layout: fixed; and width: 100%; are required for column resizing to work
+https://stackoverflow.com/questions/78435200/tanstack-table-v8-not-resizing-columns 
+*/
+.resultsTable table {
+  table-layout: fixed;
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  outline: none;
+}
+
+.emptyState {
+  padding: 16px;
+  color: var(--vscode-foreground);
+  font-size: 13px;
+}
+
+.emptyState p {
+  margin: 4px 0;
+}
+
+.footerTable {
+  table-layout: fixed;
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  background: var(--vscode-list-activeSelectionBackground);
+  margin: 0;
+}
+
+.groupedRow td {
+  background-color: var(--vscode-list-hoverBackground);
+}
