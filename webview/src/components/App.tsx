@@ -79,6 +79,9 @@ const App: React.FC = () => {
   const registerHandler = useMessageHandlerStore(
     (state) => state.registerHandler
   );
+  const unregisterHandler = useMessageHandlerStore(
+    (state) => state.unregisterHandler
+  );
 
   const {
     executeQuery,
@@ -89,11 +92,46 @@ const App: React.FC = () => {
     handleStreamingQueryInfoMessage,
   } = useQuery();
 
-  useEffect(() => {
-    registerHandler("ext.executeAllQuery", () => executeQuery());
-  }, [registerHandler, executeQuery]);
+  const {
+    handleSmartDrillTablesFound,
+    handleSmartDrillError,
+    handleSmartDrillQueryGenerated,
+  } = useSmartDrill();
 
+  const {
+    fetchSchema,
+    handleSchemaDataFoundMessage,
+    handleSchemaDataErrorMessage,
+  } = useSchema();
+
+  const setCurrentProfile = useSchemaStore((state) => state.setCurrentProfile);
+
+  // Document sync with VS Code
+  const {
+    handleDocumentContent,
+    handleDocumentDiagnostics,
+    handleDocumentSyncStatus,
+  } = useDocumentSync();
+
+  // Context menu management
+  const closeContextMenu = useGlobalContextMenuStore(
+    (state) => state.closeContextMenu
+  );
+
+  // Handle connection changes to trigger schema loading
+  const handleConnectionChanged = useCallback(
+    (message: ConnectionChangedMessage): void => {
+      const { profile } = message.payload;
+      fetchSchema();
+      setCurrentProfile(profile);
+    },
+    [fetchSchema, setCurrentProfile]
+  );
+
+  // Register all message handlers
   useEffect(() => {
+    // Query handlers
+    registerHandler("ext.executeAllQuery", () => executeQuery());
     registerHandler(
       "ext.streamingQuerySchema",
       handleStreamingQuerySchemaMessage
@@ -110,41 +148,9 @@ const App: React.FC = () => {
     registerHandler(
       "ext.streamingQueryInfo",
       handleStreamingQueryInfoMessage
-    )
-  }, [
-    registerHandler,
-    handleStreamingQuerySchemaMessage,
-    handleStreamingQueryDataMessage,
-    handleStreamingQueryCompleteMessage,
-    handleStreamingQueryErrorMessage,
-    handleStreamingQueryInfoMessage,
-  ]);
+    );
 
-  const {
-    handleSmartDrillTablesFound,
-    handleSmartDrillError,
-    handleSmartDrillQueryGenerated,
-  } = useSmartDrill();
-
-  const {
-    fetchSchema,
-    handleSchemaDataFoundMessage,
-    handleSchemaDataErrorMessage,
-  } = useSchema();
-
-  const setCurrentProfile = useSchemaStore((state) => state.setCurrentProfile);
-
-  // Handle connection changes to trigger schema loading
-  const handleConnectionChanged = useCallback(
-    (message: ConnectionChangedMessage): void => {
-      const { profile } = message.payload;
-      fetchSchema();
-      setCurrentProfile(profile);
-    },
-    [fetchSchema, setCurrentProfile]
-  );
-
-  useEffect(() => {
+    // Smart Drill handlers
     registerHandler("ext.smartDrillTablesFound", (message) => {
       handleSmartDrillTablesFound(message.payload.tables);
     });
@@ -161,44 +167,55 @@ const App: React.FC = () => {
 
     // Connection change handler
     registerHandler("ext.connectionChanged", handleConnectionChanged);
+
+    // Document sync handlers
+    registerHandler("ext.documentSyncStatus", handleDocumentSyncStatus);
+    registerHandler("ext.documentDiagnostics", handleDocumentDiagnostics);
+    registerHandler("ext.documentContent", handleDocumentContent);
+
+    // Editor focus handler
+    registerHandler("ext.editorFocusChanged", () => {
+      closeContextMenu();
+    });
+
+    return (): void => {
+      unregisterHandler("ext.executeAllQuery");
+      unregisterHandler("ext.streamingQuerySchema");
+      unregisterHandler("ext.streamingQueryData");
+      unregisterHandler("ext.streamingQueryComplete");
+      unregisterHandler("ext.streamingQueryError");
+      unregisterHandler("ext.streamingQueryInfo");
+      unregisterHandler("ext.smartDrillTablesFound");
+      unregisterHandler("ext.smartDrillQueryGenerated");
+      unregisterHandler("ext.smartDrillError");
+      unregisterHandler("ext.schemaDataFound");
+      unregisterHandler("ext.schemaDataError");
+      unregisterHandler("ext.connectionChanged");
+      unregisterHandler("ext.documentSyncStatus");
+      unregisterHandler("ext.documentDiagnostics");
+      unregisterHandler("ext.documentContent");
+      unregisterHandler("ext.editorFocusChanged");
+    };
   }, [
     registerHandler,
+    unregisterHandler,
+    executeQuery,
+    handleStreamingQuerySchemaMessage,
+    handleStreamingQueryDataMessage,
+    handleStreamingQueryCompleteMessage,
+    handleStreamingQueryErrorMessage,
+    handleStreamingQueryInfoMessage,
     handleSmartDrillTablesFound,
     handleSmartDrillError,
     handleSmartDrillQueryGenerated,
     handleSchemaDataFoundMessage,
     handleSchemaDataErrorMessage,
     handleConnectionChanged,
-  ]);
-
-  // Document sync with VS Code
-  const {
-    handleDocumentContent,
-    handleDocumentDiagnostics,
-    handleDocumentSyncStatus,
-  } = useDocumentSync();
-
-  // Context menu management
-  const closeContextMenu = useGlobalContextMenuStore(
-    (state) => state.closeContextMenu
-  );
-
-  useEffect(() => {
-    registerHandler("ext.documentSyncStatus", handleDocumentSyncStatus);
-    registerHandler("ext.documentDiagnostics", handleDocumentDiagnostics);
-    registerHandler("ext.documentContent", handleDocumentContent);
-  }, [
-    registerHandler,
     handleDocumentSyncStatus,
     handleDocumentDiagnostics,
     handleDocumentContent,
+    closeContextMenu,
   ]);
-
-  useEffect(() => {
-    registerHandler("ext.editorFocusChanged", () => {
-      closeContextMenu();
-    });
-  }, [registerHandler, closeContextMenu]);
 
   useEffect(() => {
     const cleanup = initialize();

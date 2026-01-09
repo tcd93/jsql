@@ -28,14 +28,16 @@ export interface MessageHandlerState {
   registerHandler<const K extends MessageTypeKey>(
     type: K,
     handler: (message: ExtensionToWebviewMessageTypeMap[K]) => void
-  ): boolean;
+  ): void;
+
+  unregisterHandler<const K extends MessageTypeKey>(type: K): void;
 }
 
 export const useMessageHandlerStore = create<MessageHandlerState>(
   (set, get) => ({
     isInitialized: false,
 
-    _handlers: new Map(),
+    _handlers: new HandlerMap(),
 
     initialize: () => {
       if (get().isInitialized) {
@@ -67,12 +69,12 @@ export const useMessageHandlerStore = create<MessageHandlerState>(
     registerHandler<const K extends MessageTypeKey>(
       type: K,
       handler: (message: ExtensionToWebviewMessageTypeMap[K]) => void
-    ): boolean {
-      if (get()._handlers.has(type)) {
-        return false;
-      }
+    ): void {
       get()._handlers.set(type, handler);
-      return true;
+    },
+
+    unregisterHandler<const K extends MessageTypeKey>(type: K): void {
+      get()._handlers.delete(type);
     },
   })
 );
