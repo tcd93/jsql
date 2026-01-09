@@ -1,8 +1,8 @@
 import { Header } from "@tanstack/react-table";
 import React from "react";
 import { createPortal } from "react-dom";
-import { useCopySelectedCells } from "../../../../hooks/useCopySelectedCells";
 import { useMenuContext } from "../../../../hooks/useMenuContext";
+import { copySelectedCells } from "../../../../services/ClipboardService";
 import { useGlobalContextMenuStore } from "../../../../store/globalContextMenuStore";
 import { useSmartDrillStore } from "../../../../store/smartDrillStore";
 import styles from "./CellContextMenu.module.css";
@@ -23,7 +23,6 @@ export const HeaderContextMenu: React.FC<CellContextMenuProps> = ({
   const adjustedY = Math.min(y, window.innerHeight - 60); // 60px is approximate menu height
 
   const { menuRef } = useMenuContext();
-  const { copySelectedCells } = useCopySelectedCells();
   const { selectColumn } = useSmartDrillStore();
   const closeContextMenu = useGlobalContextMenuStore(
     (state) => state.closeContextMenu

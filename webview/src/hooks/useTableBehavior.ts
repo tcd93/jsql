@@ -1,8 +1,8 @@
 import { Table } from "@tanstack/react-table";
 import { useCallback, useEffect, useRef } from "react";
 import { TableVirtuosoHandle } from "react-virtuoso";
+import { copySelectedCells } from "../services/ClipboardService";
 import { useSmartDrillStore } from "../store/smartDrillStore";
-import { useCopySelectedCells } from "./useCopySelectedCells";
 
 interface UseTableBehaviorReturn {
   // Scroll-related
@@ -109,9 +109,6 @@ export const useTableBehavior = (
   );
 
   // Keyboard navigation handling
-  // Get copy functionality from the hook
-  const { copySelectedCells } = useCopySelectedCells();
-
   // Get navigation functionality from the store
   const navigateCell = useSmartDrillStore((state) => state.navigateCell);
   const selectRectangleWithDirection = useSmartDrillStore(
@@ -173,7 +170,6 @@ export const useTableBehavior = (
       }
     },
     [
-      copySelectedCells,
       getActiveCell,
       navigateCell,
       scrollToCell,
