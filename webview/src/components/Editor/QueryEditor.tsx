@@ -19,8 +19,11 @@ import {
 import { vscodeDark } from "@uiw/codemirror-theme-vscode";
 import { useCodeMirror } from "@uiw/react-codemirror";
 import React, { useRef, useCallback } from "react";
-import { useDocumentSync } from "../../hooks/useDocumentSync";
-import { useQuery } from "../../hooks/useQuery";
+import {
+  calculateDeltaFromChangeSet,
+  syncContentChange,
+} from "../../services/DocumentSyncService";
+import { executeQuery } from "../../services/QueryService";
 import { useEditorStore } from "../../store/editorStore";
 import { useSchemaStore } from "../../store/schemaStore";
 import styles from "./QueryEditor.module.css";
@@ -31,8 +34,6 @@ const QueryEditor: React.FC<{
   className?: string;
 }> = ({ className }) => {
   const activeEditorRef = useRef<EditorView | null>(null);
-
-  const { executeQuery } = useQuery();
 
   // Get diagnostics from store
   const getDiagnostics = useEditorStore((state) => state.getDiagnostics);
@@ -167,7 +168,6 @@ const QueryEditor: React.FC<{
   // Set the method to update editor content in the store
   useEditorStore.setState({ setEditorContent });
 
-  const { calculateDeltaFromChangeSet, syncContentChange } = useDocumentSync();
   const updateContent = useEditorStore((state) => state.updateContent);
 
   return (

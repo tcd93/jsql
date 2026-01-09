@@ -1,7 +1,7 @@
 import { SmartDrillTableRequest } from "@src/types";
 import React, { useState } from "react";
 import { FaTimes } from "react-icons/fa";
-import { useSmartDrill } from "../../hooks/useSmartDrill";
+import { generateSmartDrillQuery } from "../../services/SmartDrillService";
 import { useSmartDrillStore } from "../../store/smartDrillStore";
 import styles from "./SmartDrillPanel.module.css";
 
@@ -16,7 +16,6 @@ const SmartDrillPanel: React.FC<SmartDrillPanelProps> = ({
 }) => {
   const { matchedTables, isLoading, setSmartDrillOpen, setLoading } =
     useSmartDrillStore();
-  const { generateSmartDrillQuery } = useSmartDrill();
   const [filterText, setFilterText] = useState("");
 
   // Filter tables based on search text

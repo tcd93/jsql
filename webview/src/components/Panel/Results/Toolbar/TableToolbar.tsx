@@ -1,7 +1,7 @@
 import { SchemaField } from "@src/types";
 import React, { useMemo } from "react";
 import { FaSearch, FaTable } from "react-icons/fa";
-import { useSmartDrill } from "../../../../hooks/useSmartDrill";
+import { startSmartDrill } from "../../../../services/SmartDrillService";
 import { useFooterStore } from "../../../../store/footerStore";
 import { useSchemaStore } from "../../../../store/schemaStore";
 import { useSmartDrillStore } from "../../../../store/smartDrillStore";
@@ -31,7 +31,6 @@ const TableToolbar: React.FC<TableToolbarProps> = ({
   );
   const isSchemaLoading = useSchemaStore((state) => state.isLoading);
   const isSmartDrillLoading = useSmartDrillStore((state) => state.isLoading);
-  const { startSmartDrill } = useSmartDrill();
 
   const hasSelectedCells = selectedCellsCount > 0;
   const showFooter = useFooterStore((state) => state.showFooter);
