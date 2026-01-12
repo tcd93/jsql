@@ -63,7 +63,8 @@ public class ExecuteStreamingQueryHandlerTests
         var results = new List<ReturnPayload>();
         await foreach (var result in handler.HandleAsync(param))
         {
-            results.Add(result);
+            if (result is not LogPayload)
+                results.Add(result);
         }
 
         Assert.Equal(3, results.Count);
@@ -105,7 +106,8 @@ public class ExecuteStreamingQueryHandlerTests
         var results = new List<ReturnPayload>();
         await foreach (var result in handler.HandleAsync(param))
         {
-            results.Add(result);
+            if (result is not LogPayload)
+                results.Add(result);
         }
 
         Assert.Single(results);
@@ -137,7 +139,8 @@ public class ExecuteStreamingQueryHandlerTests
         var results = new List<ReturnPayload>();
         await foreach (var result in handler.HandleAsync(param))
         {
-            results.Add(result);
+            if (result is not LogPayload)
+                results.Add(result);
         }
 
         Assert.Single(results);

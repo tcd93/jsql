@@ -41,7 +41,8 @@ public class ExecuteQueryHandlerTests
         var results = new List<ReturnPayload>();
         await foreach (var result in handler.HandleAsync(param))
         {
-            results.Add(result);
+            if (result is not LogPayload)
+                results.Add(result);
         }
 
         Assert.Single(results);
@@ -71,7 +72,8 @@ public class ExecuteQueryHandlerTests
         var results = new List<ReturnPayload>();
         await foreach (var result in handler.HandleAsync(param))
         {
-            results.Add(result);
+            if (result is not LogPayload)
+                results.Add(result);
         }
 
         Assert.Single(results);
