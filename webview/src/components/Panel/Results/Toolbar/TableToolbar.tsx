@@ -27,7 +27,7 @@ const TableToolbar: React.FC<TableToolbarProps> = ({
   // Smart Drill state
   // Only subscribe to the length and loading state, not the entire array
   const selectedCellsCount = useSmartDrillStore(
-    (state) => state.selectedCells.length
+    (state) => state.selectedCells.size
   );
   const isSchemaLoading = useSchemaStore((state) => state.isLoading);
   const isSmartDrillLoading = useSmartDrillStore((state) => state.isLoading);
@@ -42,7 +42,9 @@ const TableToolbar: React.FC<TableToolbarProps> = ({
       return 0;
     }
     const selectedCells = useSmartDrillStore.getState().selectedCells;
-    return new Set(selectedCells.map((cell) => cell.column.id)).size;
+    return new Set(
+      Array.from(selectedCells.values()).map((cell) => cell.column.id)
+    ).size;
   }, [selectedCellsCount]);
 
   return (

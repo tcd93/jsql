@@ -3,7 +3,7 @@ import { Cell, Header, Table } from "@tanstack/react-table";
 import { create } from "zustand";
 
 interface SmartDrillState {
-  selectedCells: Cell<unknown[], unknown>[];
+  selectedCells: Map<string, Cell<unknown[], unknown>>;
   anchorCell: Cell<unknown[], unknown> | null;
   isLoading: boolean;
   matchedTables: SmartDrillTableRequest[];
@@ -55,7 +55,7 @@ interface SmartDrillState {
 }
 
 export const useSmartDrillStore = create<SmartDrillState>((set, get) => ({
-  selectedCells: [],
+  selectedCells: new Map(),
   anchorCell: null,
   isLoading: false,
   matchedTables: [],
@@ -63,21 +63,22 @@ export const useSmartDrillStore = create<SmartDrillState>((set, get) => ({
   activeTabId: null,
 
   selectCell: (cell: Cell<unknown[], unknown>): void => {
+    const cellId = cell.id;
+    const currentCells = get().selectedCells;
+
     // If the current selection is also single and the same as the new selection, clear the selection
-    if (
-      get().selectedCells.length === 1 &&
-      get().selectedCells[0].row.id === cell.row.id &&
-      get().selectedCells[0].column.id === cell.column.id
-    ) {
+    if (currentCells.size === 1 && currentCells.has(cellId)) {
       set({
-        selectedCells: [],
+        selectedCells: new Map(),
         anchorCell: null,
       });
       return;
     }
 
+    const newMap = new Map();
+    newMap.set(cellId, cell);
     set({
-      selectedCells: [cell],
+      selectedCells: newMap,
       anchorCell: cell,
       matchedTables: [],
       isSmartDrillOpen: false,
@@ -86,24 +87,19 @@ export const useSmartDrillStore = create<SmartDrillState>((set, get) => ({
 
   toggleCellSelection: (cell: Cell<unknown[], unknown>): void => {
     const state = get();
+    const cellId = cell.id;
+    const newSelectedCells = new Map(state.selectedCells);
 
-    const existingIndex = state.selectedCells.findIndex(
-      (selected) =>
-        selected.row.id === cell.row.id && selected.column.id === cell.column.id
-    );
-
-    if (existingIndex >= 0) {
-      const newSelectedCells = [...state.selectedCells];
-      newSelectedCells.splice(existingIndex, 1);
+    if (newSelectedCells.has(cellId)) {
+      newSelectedCells.delete(cellId);
 
       // If we're removing the anchor cell, clear the anchor
       const isRemovingAnchor =
-        state.anchorCell?.row.id === cell.row.id &&
-        state.anchorCell.column.id === cell.column.id;
+        state.anchorCell?.id === cellId;
 
       // If no cells left or removing anchor, clear anchor
       const newAnchorCell =
-        newSelectedCells.length === 0 || isRemovingAnchor
+        newSelectedCells.size === 0 || isRemovingAnchor
           ? null
           : state.anchorCell;
 
@@ -114,8 +110,9 @@ export const useSmartDrillStore = create<SmartDrillState>((set, get) => ({
         isSmartDrillOpen: false,
       });
     } else {
+      newSelectedCells.set(cellId, cell);
       set({
-        selectedCells: [...state.selectedCells, cell],
+        selectedCells: newSelectedCells,
         matchedTables: [],
         isSmartDrillOpen: false,
       });
@@ -147,7 +144,7 @@ export const useSmartDrillStore = create<SmartDrillState>((set, get) => ({
     const minColIndex = Math.min(startColIndex, endColIndex);
     const maxColIndex = Math.max(startColIndex, endColIndex);
 
-    const rectangleSelections: Cell<unknown[], unknown>[] = [];
+    const rectangleSelections = new Map<string, Cell<unknown[], unknown>>();
     for (let r = minRowIndex; r <= maxRowIndex; r++) {
       const row = rows[r];
       if (row) {
@@ -157,7 +154,7 @@ export const useSmartDrillStore = create<SmartDrillState>((set, get) => ({
             .getAllCells()
             .find((cell) => cell.column.id === columnId);
           if (cell) {
-            rectangleSelections.push(cell);
+            rectangleSelections.set(cell.id, cell);
           }
         }
       }
@@ -173,21 +170,28 @@ export const useSmartDrillStore = create<SmartDrillState>((set, get) => ({
 
   selectColumn: (header: Header<unknown[], unknown>): void => {
     const table = header.getContext().table;
-    const columnSelections: Cell<unknown[], unknown>[] = [];
     const rows = table.getRowModel().rows;
+    let firstCell: Cell<unknown[], unknown> | null = null;
 
+    // Build array of entries first, then create Map in one operation
+    // This is faster than many individual .set() calls for large datasets
+    const entries: [string, Cell<unknown[], unknown>][] = [];
+    
     for (const row of rows) {
       const cell = row
         .getAllCells()
         .find((cell) => cell.column.id === header.column.id);
       if (cell) {
-        columnSelections.push(cell);
+        entries.push([cell.id, cell]);
+        firstCell ??= cell;
       }
     }
 
+    const columnSelections = new Map(entries);
+
     set({
       selectedCells: columnSelections,
-      anchorCell: columnSelections.length > 0 ? columnSelections[0] : null,
+      anchorCell: firstCell,
       matchedTables: [],
       isSmartDrillOpen: false,
     });
@@ -195,7 +199,7 @@ export const useSmartDrillStore = create<SmartDrillState>((set, get) => ({
 
   clearSelection: (): void => {
     set({
-      selectedCells: [],
+      selectedCells: new Map(),
       anchorCell: null,
       matchedTables: [],
       isSmartDrillOpen: false,
@@ -211,7 +215,7 @@ export const useSmartDrillStore = create<SmartDrillState>((set, get) => ({
     const { selectedCells } = get();
     return Array.from(
       new Set(
-        selectedCells.map(
+        Array.from(selectedCells.values()).map(
           (cell) => cell.getContext().column.columnDef?.header?.toString() ?? ""
         )
       )
@@ -220,7 +224,7 @@ export const useSmartDrillStore = create<SmartDrillState>((set, get) => ({
 
   getSelectedCellsAsPlain: (): SmartDrillCellSelection[] => {
     const { selectedCells } = get();
-    return selectedCells.map((cell) => {
+    return Array.from(selectedCells.values()).map((cell) => {
       const header = cell.column.columnDef?.header?.toString() ?? "";
       return {
         rowId: cell.row.id,
@@ -295,8 +299,10 @@ export const useSmartDrillStore = create<SmartDrillState>((set, get) => ({
     }
 
     // Update the selection to the new cell
+    const newMap = new Map();
+    newMap.set(newCell.id, newCell);
     set({
-      selectedCells: [newCell],
+      selectedCells: newMap,
       anchorCell: newCell,
       matchedTables: [],
       isSmartDrillOpen: false,
@@ -328,11 +334,12 @@ export const useSmartDrillStore = create<SmartDrillState>((set, get) => ({
     let maxColIndex = minColIndex;
 
     // If we already have multiple cells selected, find the current bounds
-    if (selectedCells.length > 1) {
-      const rowIndices = selectedCells.map((cell) =>
+    if (selectedCells.size > 1) {
+      const cells = Array.from(selectedCells.values());
+      const rowIndices = cells.map((cell) =>
         rows.findIndex((r) => r.id === cell.row.id)
       );
-      const colIndices = selectedCells.map((cell) =>
+      const colIndices = cells.map((cell) =>
         leafColumns.findIndex((col) => col.id === cell.column.id)
       );
 
@@ -359,7 +366,7 @@ export const useSmartDrillStore = create<SmartDrillState>((set, get) => ({
     }
 
     // Create selection coordinates for the rectangle
-    const rectangleSelections: Cell<unknown[], unknown>[] = [];
+    const rectangleSelections = new Map<string, Cell<unknown[], unknown>>();
     for (let r = minRowIndex; r <= maxRowIndex; r++) {
       const row = rows[r];
       if (row) {
@@ -369,7 +376,7 @@ export const useSmartDrillStore = create<SmartDrillState>((set, get) => ({
             .getAllCells()
             .find((cell) => cell.column.id === columnId);
           if (cell) {
-            rectangleSelections.push(cell);
+            rectangleSelections.set(cell.id, cell);
           }
         }
       }

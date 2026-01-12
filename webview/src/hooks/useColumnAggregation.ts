@@ -14,7 +14,7 @@ export const useColumnAggregation = (tabId: string): void => {
 
   useEffect(() => {
     // Clear aggregation if no cells selected
-    if (selectedCells.length === 0) {
+    if (selectedCells.size === 0) {
       vscode.postMessage({
         type: "wv.clearStatusBarAggregation",
         payload: undefined,
@@ -23,8 +23,9 @@ export const useColumnAggregation = (tabId: string): void => {
     }
 
     // Check if all selected cells are from the same column (column selection)
-    const firstColumnId = selectedCells[0]?.column.id;
-    const isColumnSelection = selectedCells.every(
+    const cellsArray = Array.from(selectedCells.values());
+    const firstColumnId = cellsArray[0]?.column.id;
+    const isColumnSelection = cellsArray.every(
       (cell) => cell.column.id === firstColumnId
     );
 

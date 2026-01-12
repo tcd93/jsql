@@ -30,10 +30,7 @@ const DataCell = ({
   const cellColumnId = column.id;
 
   const isSelected = useSmartDrillStore((state) =>
-    state.selectedCells.some(
-      (selected) =>
-        selected.row.id === cellRowId && selected.column.id === cellColumnId
-    )
+    state.selectedCells.has(cell.id)
   );
 
   const isAnchor = useSmartDrillStore(
@@ -76,10 +73,7 @@ const DataCell = ({
 
       // Check selection status lazily when actually needed
       const currentState = useSmartDrillStore.getState();
-      const isCellSelected = currentState.selectedCells.some(
-        (selected) =>
-          selected.row.id === cellRowId && selected.column.id === cellColumnId
-      );
+      const isCellSelected = currentState.selectedCells.has(cell.id);
 
       // If this cell is not selected, select it first
       if (!isCellSelected) {
@@ -93,7 +87,7 @@ const DataCell = ({
         cellId: cell.id,
       });
     },
-    [selectCell, cell, cellRowId, cellColumnId, setContextMenu]
+    [selectCell, cell, setContextMenu]
   );
 
   const isPinned = column.getIsPinned();

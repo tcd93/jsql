@@ -19,9 +19,9 @@ public class BridgeProcessHelper : IDisposable
     {
         var baseDir = AppContext.BaseDirectory;
         var currentDir = Directory.GetCurrentDirectory();
-        
+
         var possiblePaths = new List<string>();
-        
+
         var testProjectDir = Path.GetDirectoryName(baseDir);
         if (testProjectDir != null)
         {
@@ -32,7 +32,7 @@ public class BridgeProcessHelper : IDisposable
                 possiblePaths.Add(Path.Combine(projectRoot, "bin", "Debug", "net8.0", "SqlServerBridge.dll"));
             }
         }
-        
+
         possiblePaths.Add(Path.Combine(currentDir, "bin", "Debug", "net8.0", "SqlServerBridge.exe"));
         possiblePaths.Add(Path.Combine(currentDir, "bin", "Debug", "net8.0", "SqlServerBridge.dll"));
         possiblePaths.Add(Path.Combine(currentDir, "..", "bin", "Debug", "net8.0", "SqlServerBridge.exe"));
@@ -72,7 +72,7 @@ public class BridgeProcessHelper : IDisposable
 
         _process = new Process { StartInfo = startInfo };
         _process.Start();
-        
+
         var utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
         _stdin = new StreamWriter(_process.StandardInput.BaseStream, utf8NoBom) { AutoFlush = true };
         _stdout = new StreamReader(_process.StandardOutput.BaseStream, Encoding.UTF8);
@@ -88,7 +88,7 @@ public class BridgeProcessHelper : IDisposable
     {
         try
         {
-            while (!_process.HasExited && !_stdout.EndOfStream)
+            while (!_process.HasExited)
             {
                 var line = await _stdout.ReadLineAsync();
                 if (line != null)
@@ -97,6 +97,10 @@ public class BridgeProcessHelper : IDisposable
                     {
                         _stdoutBuffer.AppendLine(line);
                     }
+                }
+                else
+                {
+                    break;
                 }
             }
         }
@@ -109,7 +113,7 @@ public class BridgeProcessHelper : IDisposable
     {
         try
         {
-            while (!_process.HasExited && !_stderr.EndOfStream)
+            while (!_process.HasExited)
             {
                 var line = await _stderr.ReadLineAsync();
                 if (line != null)
@@ -118,6 +122,10 @@ public class BridgeProcessHelper : IDisposable
                     {
                         _stderrBuffer.AppendLine(line);
                     }
+                }
+                else
+                {
+                    break;
                 }
             }
         }
@@ -142,11 +150,11 @@ public class BridgeProcessHelper : IDisposable
         var startTime = DateTime.UtcNow;
         var lastLineCount = 0;
         var noProgressCount = 0;
-        
+
         while (messages.Count < expectedCount && (DateTime.UtcNow - startTime).TotalMilliseconds < timeoutMs)
         {
             var lines = GetStdoutLines();
-            
+
             if (lines.Count == lastLineCount)
             {
                 noProgressCount++;
@@ -161,7 +169,7 @@ public class BridgeProcessHelper : IDisposable
                 lastLineCount = lines.Count;
                 noProgressCount = 0;
             }
-            
+
             foreach (var line in lines)
             {
                 if (string.IsNullOrWhiteSpace(line) || processedLines.Contains(line))
@@ -198,7 +206,7 @@ public class BridgeProcessHelper : IDisposable
     {
         var messages = new List<BridgeMessage>();
         var lines = GetStdoutLines();
-        
+
         foreach (var line in lines)
         {
             if (string.IsNullOrWhiteSpace(line))
@@ -271,7 +279,7 @@ public class BridgeProcessHelper : IDisposable
         _stdout?.Dispose();
         _stderr?.Dispose();
         _process?.Dispose();
-        
+
         _disposed = true;
     }
 }

@@ -30,7 +30,7 @@ export const useTableBehavior = (
     const { selectedCells, anchorCell: currentAnchorCell } =
       useSmartDrillStore.getState();
 
-    if (!selectedCells.length || !currentAnchorCell) {
+    if (selectedCells.size === 0 || !currentAnchorCell) {
       return currentAnchorCell
         ? {
             rowIndex: parseInt(currentAnchorCell.row.id),
@@ -39,20 +39,22 @@ export const useTableBehavior = (
         : null;
     }
 
-    if (selectedCells.length === 1) {
+    if (selectedCells.size === 1) {
+      const cell = Array.from(selectedCells.values())[0];
       return {
-        rowIndex: parseInt(selectedCells[0].row.id),
-        columnId: selectedCells[0].column.id,
+        rowIndex: parseInt(cell.row.id),
+        columnId: cell.column.id,
       };
     }
 
     // For multiple cells, find the lower-right corner
-    const rowIndices = selectedCells.map((cell) => parseInt(cell.row.id));
+    const cellsArray = Array.from(selectedCells.values());
+    const rowIndices = cellsArray.map((cell) => parseInt(cell.row.id));
     const maxRowIndex = Math.max(...rowIndices);
 
     // Get column order from table headers
     const columnOrder = table.getLeafHeaders().map((header) => header.id);
-    const colIndices = selectedCells.map((cell) =>
+    const colIndices = cellsArray.map((cell) =>
       columnOrder.indexOf(cell.column.id)
     );
     const maxColIndex = Math.max(...colIndices);
@@ -122,7 +124,7 @@ export const useTableBehavior = (
         // Only intercept Ctrl+C if there are selected cells in smart drill store
         // Otherwise, allow default browser copy behavior (for footer cells, text selection, etc.)
         const selectedCells = useSmartDrillStore.getState().selectedCells;
-        if (selectedCells.length > 0) {
+        if (selectedCells.size > 0) {
           event.preventDefault();
           // needs `stopPropagation` here, maybe ctrl+c is handled differently in vscode
           event.stopPropagation();

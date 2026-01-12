@@ -3,15 +3,17 @@ import { useSmartDrillStore } from "../store/smartDrillStore";
 export const copySelectedCells = async (): Promise<void> => {
   const selectedCells = useSmartDrillStore.getState().selectedCells;
 
-  if (selectedCells.length === 0) {
+  if (selectedCells.size === 0) {
     console.warn("No cells selected to copy");
     return;
   }
 
   try {
+    const cellsArray = Array.from(selectedCells.values());
+    
     // If selected only one cell, copy its raw value directly
-    if (selectedCells.length === 1) {
-      const value = selectedCells[0].getValue();
+    if (cellsArray.length === 1) {
+      const value = cellsArray[0].getValue();
       const stringValue =
         value === null || value === undefined ? "" : String(value);
       await navigator.clipboard.writeText(stringValue);
@@ -19,7 +21,7 @@ export const copySelectedCells = async (): Promise<void> => {
     }
 
     // Extract values from selected cells and format as comma-delimited string
-    const values = selectedCells
+    const values = cellsArray
       .map((cell) => {
         const value = cell.getValue();
         if (value === null || value === undefined) {
