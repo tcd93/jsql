@@ -48,11 +48,9 @@ export const AggregationContextMenu: React.FC<AggregationContextMenuProps> = ({
   };
 
   // Adjust position to keep menu within viewport
-  // Default width 160 is likely too small for aggregation names if they are long, but they are short
-  const adjustedX = Math.min(x, window.innerWidth - 160);
   // Menu height depends on number of options.
   const menuHeight = AggregationOptions.length * 36; // Approx
-  const adjustedY = Math.min(y, window.innerHeight - menuHeight);
+  const adjustedY = Math.min(y, Math.abs(window.innerHeight - menuHeight));
 
   // Determine key for aggregation function.
   // The 'aggregationFn' in columnDef can be a string (key) or a function.
@@ -64,9 +62,8 @@ export const AggregationContextMenu: React.FC<AggregationContextMenuProps> = ({
       ref={menuRef}
       className={styles.contextMenu}
       style={{
-        left: adjustedX,
+        left: x,
         top: adjustedY,
-        maxHeight: "300px", // Limit height if too many options
         overflowY: "auto",
       }}
       role="menu"
