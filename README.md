@@ -2,7 +2,9 @@
 
 A VS Code extension for Adhoc SQL query with advanced result visualization and analysis features. 
 
-Designed to **work in conjuntion Microsoft's MSSQL extension** (re-use existing connections) or configure your own connections independently (supports SQL Server and PostgreSQL).
+![editor](./resources/editor.png)
+
+Designed to **work in conjuntion Microsoft's MSSQL extension** (re-use existing connections) - think of it as a re-skin. Additionally, you can configure your own connections independently (supports SQL Server and PostgreSQL) without using _mssql_, but this extension does not come with its own language server.
 
 ## Features
 
