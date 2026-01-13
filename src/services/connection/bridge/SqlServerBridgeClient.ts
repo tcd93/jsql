@@ -72,20 +72,19 @@ export class SqlServerBridgeClient extends EventEmitter {
         bridgeDir,
         "bin",
         "Release",
-        "net10.0",
+        "net9.0",
         runtimeId,
         executableName
       ),
-      path.join(bridgeDir, "bin", "Release", "net10.0", runtimeId, dllName),
+      path.join(bridgeDir, "bin", "Release", "net9.0", runtimeId, dllName),
       // Debug, runtime-specific
-      path.join(bridgeDir, "bin", "Debug", "net10.0", runtimeId, executableName),
-      path.join(bridgeDir, "bin", "Debug", "net10.0", runtimeId, dllName),
-      // Release, framework-dependent
-      path.join(bridgeDir, "bin", "Release", "net10.0", executableName),
-      path.join(bridgeDir, "bin", "Release", "net10.0", dllName),
-      // Debug, framework-dependent
-      path.join(bridgeDir, "bin", "Debug", "net10.0", executableName),
-      path.join(bridgeDir, "bin", "Debug", "net10.0", dllName),
+      path.join(bridgeDir, "bin", "Debug", "net9.0", runtimeId, executableName),
+      path.join(bridgeDir, "bin", "Debug", "net9.0", runtimeId, dllName),
+      // Framework-dependent
+      path.join(bridgeDir, "bin", "Release", "net9.0", executableName),
+      path.join(bridgeDir, "bin", "Release", "net9.0", dllName),
+      path.join(bridgeDir, "bin", "Debug", "net9.0", executableName),
+      path.join(bridgeDir, "bin", "Debug", "net9.0", dllName),
     ];
 
     for (const searchPath of searchPaths) {

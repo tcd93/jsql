@@ -22,7 +22,7 @@ Auto generate queries based on selected data points to explore related informati
 
 ## Requirements
 - VS Code 1.99.1 or higher
-- For SQL Server: .NET Runtime 8.0 or higher
+- For SQL Server: .NET Runtime 9.0 or higher
 
 ## Contributing
 
