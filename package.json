@@ -2,11 +2,11 @@
   "name": "jsql-extension",
   "displayName": "JSQL Editor",
   "description": "Advanced SQL editor with SQL Server integration",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "jiiyung",
   "repository": {
     "type": "git",
-    "url": "https://github.com/tcd93/dremio_demo.git"
+    "url": "https://github.com/tcd93/jsql"
   },
   "engines": {
     "vscode": "^1.99.1"
