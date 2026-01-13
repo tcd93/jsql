@@ -46,10 +46,14 @@ const DataCell = ({
   const selectRectangle = useSmartDrillStore((state) => state.selectRectangle);
 
   // Check if this cell should be highlighted as different
-  const columnIndex = cell.column.getIndex(); // Get the column index for comparison
+  // Note: The display column index includes the row number column at index 0,
+  // but the comparison data uses data array indices (without row number column).
+  // So we need to subtract 1 to get the correct data index.
+  const displayColumnIndex = cell.column.getIndex();
+  const dataColumnIndex = displayColumnIndex - 1; // Account for row number column at index 0
   const isDifferent =
-    comparisonResult && rowIndex !== undefined
-      ? comparisonResult.differences.has(`${rowIndex},${columnIndex}`)
+    comparisonResult && rowIndex !== undefined && dataColumnIndex >= 0
+      ? comparisonResult.differences.has(`${rowIndex},${dataColumnIndex}`)
       : false;
 
   const handleCellClick = useCallback(
