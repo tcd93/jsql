@@ -2,7 +2,7 @@
   "name": "jsql-extension",
   "displayName": "JSQL Editor",
   "description": "Advanced SQL editor with SQL Server integration",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "publisher": "jiiyung",
   "repository": {
     "type": "git",
