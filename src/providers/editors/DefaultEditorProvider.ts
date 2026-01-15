@@ -245,17 +245,18 @@ export class DefaultEditorProvider extends BaseEditorProvider {
       return;
     }
 
-    const text = document.getText();
-    if (!text.trim()) {
+    const text = document.getText().trim();
+    if (!text) {
       this.outputService.showWarning("No query to execute");
       return;
     }
-
-    this.executeStreamingQueryHandler.executeStreamingQuery(
-      crypto.randomUUID(),
-      text,
-      document
-    );
+    for (const query of this.splitTextAtKeyword(text)) {
+      await this.executeStreamingQueryHandler.executeStreamingQuery(
+        crypto.randomUUID(),
+        query,
+        document
+      );
+    }
   }
 
   async executeQueryAtCursor(
@@ -273,16 +274,24 @@ export class DefaultEditorProvider extends BaseEditorProvider {
       return;
     }
 
-    let selection = editor.selection;
-    let queryToExecute: string;
-    let startPosition: number;
-    let endPosition: number;
+    const selection = editor.selection;
 
     // If there's selected text, execute that
     if (!selection.isEmpty) {
-      queryToExecute = document.getText(selection).trim();
-      startPosition = document.offsetAt(selection.start);
-      endPosition = document.offsetAt(selection.end);
+      const text = document.getText(selection).trim();
+      if (!text) {
+        this.outputService.showWarning("No query to execute");
+        return;
+      }
+      for (const query of this.splitTextAtKeyword(text)) {
+        await this.executeStreamingQueryHandler.executeStreamingQuery(
+          crypto.randomUUID(),
+          query,
+          document,
+          selection,
+          connectionProfile
+        );
+      }
     } else {
       // If no selection, find the query at cursor position
       const cursorPosition = document.offsetAt(editor.selection.active);
@@ -291,27 +300,18 @@ export class DefaultEditorProvider extends BaseEditorProvider {
       if (!queryRange) {
         return;
       }
-      queryToExecute = queryRange.query;
-      startPosition = queryRange.from;
-      endPosition = queryRange.to;
-      selection = new vscode.Selection(
-        document.positionAt(startPosition),
-        document.positionAt(endPosition)
+      const selection = new vscode.Selection(
+        document.positionAt(queryRange.from),
+        document.positionAt(queryRange.to)
+      );
+      await this.executeStreamingQueryHandler.executeStreamingQuery(
+        crypto.randomUUID(),
+        queryRange.query,
+        document,
+        selection,
+        connectionProfile
       );
     }
-
-    if (!queryToExecute.trim()) {
-      this.outputService.showWarning("No query to execute");
-      return;
-    }
-
-    this.executeStreamingQueryHandler.executeStreamingQuery(
-      crypto.randomUUID(),
-      queryToExecute,
-      document,
-      selection,
-      connectionProfile
-    );
   }
 
   appendTextToDocument(text: string): void {

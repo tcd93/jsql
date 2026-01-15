@@ -179,4 +179,13 @@ export abstract class BaseEditorProvider
    * so it's best we leave this to subclasses
    */
   public abstract getFocusedContext(): vscode.TextDocument | undefined;
+
+  /**
+   * Split the given text at the specified keyword (default is "GO").
+   * @param keyword The keyword to split the text at, case insensitive. Default is "GO".
+   */
+  protected splitTextAtKeyword(text: string, keyword = "GO"): string[] {
+    return text.split(new RegExp(`^${keyword}$`, "gim"))
+      .filter((part) => part.trim().length > 0);
+  }
 }

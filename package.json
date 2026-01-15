@@ -2,7 +2,7 @@
   "name": "jsql-extension",
   "displayName": "JSQL Editor",
   "description": "Advanced SQL editor with SQL Server integration",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "publisher": "jiiyung",
   "repository": {
     "type": "git",
@@ -18,7 +18,10 @@
     "sql",
     "database",
     "query",
-    "sqlserver"
+    "editor",
+    "sqlserver",
+    "sql server",
+    "mssql"
   ],
   "activationEvents": [
     "onLanguage:sql",
@@ -60,11 +63,6 @@
       }
     ],
     "keybindings": [
-      {
-        "command": "jSql.executeQueryAtCursor",
-        "key": "ctrl+enter",
-        "when": "editorTextFocus && editorLangId == 'sql'"
-      },
       {
         "command": "jSql.executeQueryAtCursor",
         "key": "shift+enter",
