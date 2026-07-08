@@ -258,8 +258,7 @@ export class MssqlExtensionService extends vscode.Disposable {
     const integratedSecurity = params.get("integrated security");
     const trustedConnection = params.get("trusted connection");
 
-    let authentication: SqlServerConnectionProfile["authentication"] =
-      "Sql Password"; // Default
+    let authentication: SqlServerConnectionProfile["authentication"] | undefined;
 
     // https://learn.microsoft.com/en-us/sql/connect/jdbc/connecting-using-azure-active-directory-authentication?view=sql-server-ver17
     if (authenticationParam) {
@@ -285,6 +284,11 @@ export class MssqlExtensionService extends vscode.Disposable {
     ) {
       // Check for Windows authentication indicators
       authentication = "Integrated Security";
+    } else if (!username && !password) {
+      // Newer versions of vscode-mssql (>=1.40) can omit authentication/user fields for Azure MFA flows.
+      authentication = "Active Directory Interactive";
+    } else {
+      authentication = "Sql Password";
     }
 
     // Create a meaningful connection name

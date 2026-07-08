@@ -136,52 +136,43 @@ public class ConnectionManager : IConnectionManager, IDisposable
 
     private string BuildConnectionString(CreateConnectionParams parameters)
     {
-        SqlConnectionStringBuilder builder;
-        
-        if (parameters.ConnectionString != null)
+        SqlConnectionStringBuilder builder = new()
         {
-            builder = new SqlConnectionStringBuilder(parameters.ConnectionString);
+            DataSource = $"{parameters.Host},{parameters.Port}",
+            InitialCatalog = parameters.Database ?? "master",
+            ConnectTimeout = parameters.ConnectTimeout ?? BridgeConstants.DefaultConnectTimeout,
+            CommandTimeout = parameters.CommandTimeout ?? BridgeConstants.DefaultCommandTimeout,
+            Encrypt = parameters.Encrypt ?? false,
+            TrustServerCertificate = parameters.TrustServerCertificate ?? true,
+            ApplicationName = parameters.ApplicationName ?? BridgeConstants.DefaultApplicationName
+        };
+
+        if (parameters.Authentication == AuthenticationMethods.IntegratedSecurity ||
+            (string.IsNullOrEmpty(parameters.Authentication) && string.IsNullOrEmpty(parameters.Username) && string.IsNullOrEmpty(parameters.Password)))
+        {
+            builder.IntegratedSecurity = true;
+            if (!string.IsNullOrEmpty(parameters.ServerSPN))
+            {
+                builder.ServerSPN = parameters.ServerSPN;
+            }
+        }
+        else if (parameters.Authentication == AuthenticationMethods.ActiveDirectoryInteractive)
+        {
+            builder.Authentication = SqlAuthenticationMethod.ActiveDirectoryInteractive;
+            if (!string.IsNullOrEmpty(parameters.ClientId))
+            {
+                builder.UserID = parameters.ClientId;
+            }
         }
         else
         {
-            builder = new SqlConnectionStringBuilder
+            if (!string.IsNullOrEmpty(parameters.Username))
             {
-                DataSource = $"{parameters.Host},{parameters.Port}",
-                InitialCatalog = parameters.Database ?? "master",
-                ConnectTimeout = parameters.ConnectTimeout ?? BridgeConstants.DefaultConnectTimeout,
-                CommandTimeout = parameters.CommandTimeout ?? BridgeConstants.DefaultCommandTimeout,
-                Encrypt = parameters.Encrypt ?? false,
-                TrustServerCertificate = parameters.TrustServerCertificate ?? true,
-                ApplicationName = parameters.ApplicationName ?? BridgeConstants.DefaultApplicationName
-            };
-
-            if (parameters.Authentication == AuthenticationMethods.IntegratedSecurity ||
-                (string.IsNullOrEmpty(parameters.Authentication) && string.IsNullOrEmpty(parameters.Username) && string.IsNullOrEmpty(parameters.Password)))
-            {
-                builder.IntegratedSecurity = true;
-                if (!string.IsNullOrEmpty(parameters.ServerSPN))
-                {
-                    builder.ServerSPN = parameters.ServerSPN;
-                }
+                builder.UserID = parameters.Username;
             }
-            else if (parameters.Authentication == AuthenticationMethods.ActiveDirectoryInteractive)
+            if (!string.IsNullOrEmpty(parameters.Password))
             {
-                builder.Authentication = SqlAuthenticationMethod.ActiveDirectoryInteractive;
-                if (!string.IsNullOrEmpty(parameters.ClientId))
-                {
-                    builder.UserID = parameters.ClientId;
-                }
-            }
-            else
-            {
-                if (!string.IsNullOrEmpty(parameters.Username))
-                {
-                    builder.UserID = parameters.Username;
-                }
-                if (!string.IsNullOrEmpty(parameters.Password))
-                {
-                    builder.Password = parameters.Password;
-                }
+                builder.Password = parameters.Password;
             }
         }
 
