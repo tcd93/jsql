@@ -4,13 +4,12 @@ import {
   getSortedRowModel,
   getFilteredRowModel,
   ColumnDef,
-  ColumnResizeMode,
   getGroupedRowModel,
   getExpandedRowModel,
   Row,
   Cell,
 } from "@tanstack/react-table";
-import React, { useMemo, useEffect, useRef, useCallback } from "react";
+import React, { useMemo, useEffect, useRef, useCallback, useState } from "react";
 import { TableVirtuoso } from "react-virtuoso";
 import { useShallow } from "zustand/react/shallow";
 import { useBatchedData } from "../../../../hooks/useBatchedData";
@@ -121,7 +120,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ searchText, tabId }) => {
         size: 150,
         minSize: 60,
         maxSize: 800,
-      } as ColumnDef<unknown[]>;
+      };
     });
 
     return [rowNumberColumn, ...dataColumns];
@@ -140,6 +139,9 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ searchText, tabId }) => {
     return batchData;
   }, [batchData, schema]);
 
+  // TanStack Table uses interior mutability; React Compiler marks this API as incompatible.
+  // Keep the warning scoped to this call so other react-hooks checks still run.
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data: tableData,
     columns,
@@ -170,7 +172,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ searchText, tabId }) => {
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    columnResizeMode: "onChange" as ColumnResizeMode,
+    columnResizeMode: "onChange",
     getGroupedRowModel: getGroupedRowModel(),
     getExpandedRowModel: getExpandedRowModel(),
     autoResetExpanded: false,
@@ -190,6 +192,16 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ searchText, tabId }) => {
 
   // Get table behavior (scrolling) from custom hook
   const { scrollParentRef, virtuosoRef } = useTableBehavior(table);
+  const [customScrollParent, setCustomScrollParent] =
+    useState<HTMLDivElement | null>(null);
+
+  const setScrollContainerRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      scrollParentRef.current = node;
+      setCustomScrollParent(node);
+    },
+    [scrollParentRef]
+  );
 
   const filteredRows = table.getRowModel().rows;
   const showFooter = useFooterStore(
@@ -218,17 +230,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ searchText, tabId }) => {
 
   const fixedHeaderContent = useCallback(
     () => <HeaderRow table={table} />,
-    [
-      table,  
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      table.getState().columnOrder,
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      table.getState().grouping,
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      table.getState().sorting,
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      table.getState().columnPinning,
-    ]
+    [table]
   );
 
   const fixedFooterContent = useCallback(
@@ -236,14 +238,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ searchText, tabId }) => {
       showFooter ? (
         <FooterRow table={table} />
       ) : null,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [
-      showFooter,
-      table,
-      schema,
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      table.getRowModel(),
-    ]
+    [showFooter, table]
   );
 
   const itemContent = useCallback(
@@ -274,7 +269,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ searchText, tabId }) => {
 
   return (
     <div
-      ref={scrollParentRef}
+      ref={setScrollContainerRef}
       className={`${styles.resultsTable}`}
       style={{
         ...columnSizeVars,
@@ -283,7 +278,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ searchText, tabId }) => {
       role="grid"
       aria-label="Data table with copyable cells"
     >
-      {scrollParentRef.current && (
+      {customScrollParent && (
         <>
           <TableVirtuoso
             ref={virtuosoRef}
@@ -292,7 +287,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ searchText, tabId }) => {
             components={virtuosoComponents}
             fixedHeaderContent={fixedHeaderContent}
             fixedFooterContent={fixedFooterContent}
-            customScrollParent={scrollParentRef.current}
+            customScrollParent={customScrollParent}
             itemContent={itemContent}
           />
         </>

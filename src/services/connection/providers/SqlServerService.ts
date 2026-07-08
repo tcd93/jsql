@@ -7,14 +7,11 @@ import {
   SchemaField,
   StreamingDataResult,
   StreamingCompleteResult,
-  CloseConnectionParams,
   StreamingMessage,
 } from "../../../types";
 import { getContext, getService, OutputService } from "../../index";
 import { SqlServerBridgeClient } from "../bridge/SqlServerBridgeClient";
 import { ConnectionService } from "../index";
-
-type QueryResult = SyncQueryResult;
 
 export class SqlServerService extends ConnectionService {
   private readonly bridgeClient: SqlServerBridgeClient;
@@ -133,7 +130,7 @@ export class SqlServerService extends ConnectionService {
 
     const response = await this.bridgeClient.sendRequest("closeConnection", {
       connectionName,
-    } as CloseConnectionParams);
+    });
     if (!response) {
       throw new Error("No response from bridge");
     }
@@ -196,7 +193,7 @@ export class SqlServerService extends ConnectionService {
     return {
       schema: response.schema,
       data: response.data,
-    } as QueryResult;
+    };
   }
 
   async executeStreamingQuery(

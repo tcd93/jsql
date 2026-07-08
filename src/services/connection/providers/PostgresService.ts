@@ -56,13 +56,13 @@ export class PostgresService extends ConnectionService {
 
       // Override the end method to clean up cache
       const originalEnd = pool.end.bind(pool);
-      pool.end = (async () => {
+      pool.end = (async (): Promise<void> => {
         console.debug(
           `------------ Removing cache for connection: ${connectionName} ------------`
         );
         this.pools.delete(connectionName);
         return originalEnd();
-      }) as typeof pool.end;
+      });
     } catch (err) {
       console.error(
         `Error creating connection pool for ${connectionName}:`,

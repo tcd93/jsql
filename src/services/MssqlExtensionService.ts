@@ -315,6 +315,6 @@ export class MssqlExtensionService extends vscode.Disposable {
       applicationIntent,
       accessToken,
       serverSPN,
-    } as SqlServerConnectionProfile;
+    };
   }
 }

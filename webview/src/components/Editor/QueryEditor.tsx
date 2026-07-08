@@ -18,7 +18,7 @@ import {
 } from "@src/utils";
 import { vscodeDark } from "@uiw/codemirror-theme-vscode";
 import { useCodeMirror } from "@uiw/react-codemirror";
-import React, { useRef, useCallback } from "react";
+import React, { useRef, useCallback, useEffect, useMemo } from "react";
 import {
   calculateDeltaFromChangeSet,
   syncContentChange,
@@ -38,12 +38,7 @@ const QueryEditor: React.FC<{
   // Get diagnostics from store
   const getDiagnostics = useEditorStore((state) => state.getDiagnostics);
 
-  const handleQueryExecution = (): void => {
-    const editor = activeEditorRef.current;
-    if (!editor) {
-      return;
-    }
-
+  const handleQueryExecution = useCallback((editor: EditorView): void => {
     const selection = editor.state.selection;
     const selectedText = editor.state.sliceDoc(
       selection.main.from,
@@ -59,54 +54,48 @@ const QueryEditor: React.FC<{
 
       executeQuery(queryAtCursor);
     }
-  };
+  }, []);
 
-  const executeQueryKeymap = Prec.highest(
-    keymap.of([
-      {
-        key: "Ctrl-Enter",
-        run: (): boolean => {
-          handleQueryExecution();
-          return true;
-        },
-        preventDefault: true,
-        stopPropagation: true,
-      },
-      {
-        key: "Cmd-Enter",
-        run: (): boolean => {
-          handleQueryExecution();
-          return true;
-        },
-        preventDefault: true,
-        stopPropagation: true,
-      },
-      {
-        key: "F5",
-        run: (): boolean => {
-          handleQueryExecution();
-          return true;
-        },
-        preventDefault: true,
-        stopPropagation: true,
-      },
-    ])
+  const executeQueryKeymap = useMemo(
+    () =>
+      Prec.highest(
+        keymap.of([
+          {
+            key: "Mod-Enter",
+            run: (view): boolean => {
+              handleQueryExecution(view);
+              return true;
+            },
+            preventDefault: true,
+            stopPropagation: true,
+          },
+          {
+            key: "F5",
+            run: (view): boolean => {
+              handleQueryExecution(view);
+              return true;
+            },
+            preventDefault: true,
+            stopPropagation: true,
+          },
+        ])
+      ),
+    [handleQueryExecution]
   );
 
   // Get current schema data based on provider
   const schemaData = useSchemaStore((state) => state.schemaData);
   const profile = useSchemaStore((state) => state.currentProfile);
   const schema = profile?.name ? schemaData[profile.name] : undefined;
-  let override: [CompletionSource] | undefined;
-  if (profile && schema) {
-    override = [createSqlAutocompleteSource(schema)];
-  }
+  const override = useMemo<[CompletionSource] | undefined>(() => {
+    if (profile && schema) {
+      return [createSqlAutocompleteSource(schema)];
+    }
+    return undefined;
+  }, [profile, schema]);
 
-  const { setContainer } = useCodeMirror({
-    container: null,
-    height: "100%",
-    theme: vscodeDark,
-    extensions: [
+  const extensions = useMemo(
+    () => [
       executeQueryKeymap,
       sqlHintExtension(),
       linter(() => getDiagnostics()), // Add diagnostic linting
@@ -118,6 +107,14 @@ const QueryEditor: React.FC<{
         upperCaseKeywords: true,
       }),
     ],
+    [executeQueryKeymap, getDiagnostics, override]
+  );
+
+  const { setContainer } = useCodeMirror({
+    container: null,
+    height: "100%",
+    theme: vscodeDark,
+    extensions,
     onChange: (value, viewUpdate) => {
       const delta = calculateDeltaFromChangeSet(viewUpdate.changes);
       updateContent(value);
@@ -165,8 +162,11 @@ const QueryEditor: React.FC<{
       });
     }
   }, []);
+
   // Set the method to update editor content in the store
-  useEditorStore.setState({ setEditorContent });
+  useEffect(() => {
+    useEditorStore.setState({ setEditorContent });
+  }, [setEditorContent]);
 
   const updateContent = useEditorStore((state) => state.updateContent);
 

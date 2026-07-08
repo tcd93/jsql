@@ -9,10 +9,6 @@ import {
   BridgeMessage,
   ReturnPayload,
   ExecuteStreamingQueryPayload,
-  ExecuteQueryPayload,
-  CreateConnectionPayload,
-  CloseConnectionPayload,
-  CancelQueryPayload,
   BridgeError,
   isLogPayload,
   LogPayload,
@@ -347,25 +343,25 @@ export class SqlServerBridgeClient extends EventEmitter {
           schema: [],
           data: { rows: [], totalRowsSoFar: 0 },
           error,
-        } as ExecuteQueryPayload;
+        };
       case "createConnection":
         return {
           $type: "createConnection",
           success: false,
           error,
-        } as CreateConnectionPayload;
+        };
       case "closeConnection":
         return {
           $type: "closeConnection",
           success: false,
           error,
-        } as CloseConnectionPayload;
+        };
       case "cancelQuery":
         return {
           $type: "cancelQuery",
           success: false,
           error,
-        } as CancelQueryPayload;
+        };
       case "executeStreamingQuery":
         return {
           $type: "executeStreamingQuery",
@@ -376,14 +372,14 @@ export class SqlServerBridgeClient extends EventEmitter {
             error: errorMessage,
           },
           error,
-        } as ExecuteStreamingQueryPayload;
+        };
       default:
         // Fallback to createConnection payload for unknown methods
         return {
           $type: "createConnection",
           success: false,
           error,
-        } as CreateConnectionPayload;
+        };
     }
   }
 

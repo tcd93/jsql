@@ -29,7 +29,7 @@ class HandlerMap extends Map<MessageTypeKey, AnyMessageHandler[]> {
   getHandlers<K extends MessageTypeKey>(
     type: K
   ): ((message: MessageType<K>) => void)[] {
-    return (this.get(type) ?? []) as ((message: MessageType<K>) => void)[];
+    return (this.get(type) ?? []);
   }
 
   removeHandler<K extends MessageTypeKey>(
