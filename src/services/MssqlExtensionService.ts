@@ -11,7 +11,7 @@ import { getService } from ".";
 interface MssqlExtensionApi {
   /**
    * Get the connection string for the provided connection Uri or ConnectionDetails.
-   * https://github.com/microsoft/vscode-mssql/blob/main/src/controllers/connectionManager.ts#L433
+   * https://github.com/microsoft/vscode-mssql/blob/main/extensions/mssql/src/controllers/connectionManager.ts
    * @param connectionUriOrDetails Either the connection Uri for the connection or the connection details for the connection is required.
    * @param includePassword (optional) if password should be included in connection string; default is false
    * @param includeApplicationName (optional) if application name should be included in connection string; default is true
@@ -162,7 +162,7 @@ export class MssqlExtensionService extends vscode.Disposable {
 
     try {
       const connectionString = await api.getConnectionString(
-        vscode.window.activeTextEditor?.document.uri.toString(true),
+        vscode.window.activeTextEditor?.document.uri.toString(false),
         true, // includePassword
         true
       );
