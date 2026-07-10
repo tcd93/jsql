@@ -12,7 +12,7 @@ export const startSmartDrill = async (): Promise<void> => {
   const { selectedCells, setLoading, getUniqueColumnNames } =
     useSmartDrillStore.getState();
 
-  if (selectedCells.values.length === 0) {
+  if (selectedCells.size === 0) {
     return;
   }
 
