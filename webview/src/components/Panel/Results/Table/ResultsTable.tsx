@@ -9,7 +9,13 @@ import {
   Row,
   Cell,
 } from "@tanstack/react-table";
-import React, { useMemo, useEffect, useRef, useCallback, useState } from "react";
+import React, {
+  useMemo,
+  useEffect,
+  useRef,
+  useCallback,
+  useState,
+} from "react";
 import { TableVirtuoso } from "react-virtuoso";
 import { useShallow } from "zustand/react/shallow";
 import { useBatchedData } from "../../../../hooks/useBatchedData";
@@ -38,20 +44,20 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ searchText, tabId }) => {
   const stats = useTabStore((state) => state.getTab(tabId)?.streamStats);
   const selectedBaseTabId = useTabStore((state) => state.selectedBaseTabId);
   const selectedComparisonTabId = useTabStore(
-    (state) => state.selectedComparisonTabId
+    (state) => state.selectedComparisonTabId,
   );
   const getTab = useTabStore((state) => state.getTab);
   const groupedColumns =
     useTabStore(
       useShallow((state) =>
-        state.getTab(tabId)?.groupedColumns.map((col) => col.id)
-      )
+        state.getTab(tabId)?.groupedColumns.map((col) => col.id),
+      ),
     ) ?? [];
   const pinnedColumns = useTabStore(
-    useShallow((state) => state.getTab(tabId)?.pinnedColumns)
+    useShallow((state) => state.getTab(tabId)?.pinnedColumns),
   );
   const expandedState = useTabStore(
-    useShallow((state) => state.getTab(tabId)?.expandedState)
+    useShallow((state) => state.getTab(tabId)?.expandedState),
   );
   const columnOrder = useTabStore((state) => state.getTab(tabId)?.columnOrder);
 
@@ -200,46 +206,49 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ searchText, tabId }) => {
       scrollParentRef.current = node;
       setCustomScrollParent(node);
     },
-    [scrollParentRef]
+    [scrollParentRef],
   );
 
   const filteredRows = table.getRowModel().rows;
   const showFooter = useFooterStore(
-    (state) => state.showFooter && schema && schema.length > 0
+    (state) => state.showFooter && schema && schema.length > 0,
   );
 
-  const columnSizeVars = table.getFlatHeaders().reduce((colSizes, header) => {
-    colSizes[`--header-${header.id}-size`] = header.getSize();
-    colSizes[`--col-${header.column.id}-size`] = header.column.getSize();
-    return colSizes;
-  }, {} as Record<string, number>);
+  const columnSizeVars = table.getFlatHeaders().reduce(
+    (colSizes, header) => {
+      colSizes[`--header-${header.id}-size`] = header.getSize();
+      colSizes[`--col-${header.column.id}-size`] = header.column.getSize();
+      return colSizes;
+    },
+    {} as Record<string, number>,
+  );
 
   const virtuosoComponents = useMemo(
     () => ({
       TableRow: (
         props: {
           item: Row<unknown[]>;
-        } & React.HTMLAttributes<HTMLTableRowElement>
+        } & React.HTMLAttributes<HTMLTableRowElement>,
       ): React.JSX.Element => {
         const isGrouped = props.item.getIsGrouped();
         return <tr {...props} className={isGrouped ? styles.groupedRow : ""} />;
       },
     }),
-    []
+    [],
   );
 
-  const fixedHeaderContent = useCallback(
-    () => <HeaderRow table={table} />,
-    [table]
+  // NOTE: `table` from useReactTable keeps a stable object identity across
+  // renders (it mutates internally via setOptions), so memoizing these with
+  // useCallback([table]) would never recompute and react-virtuoso's memoized
+  // sticky header/footer wrapper would never re-render (e.g. column reordering,
+  // sorting, and grouping changes wouldn't be reflected in the header/footer).
+  // Recreate them on every render so Virtuoso always picks up the latest state.
+  const fixedHeaderContent = (): React.JSX.Element => (
+    <HeaderRow table={table} />
   );
 
-  const fixedFooterContent = useCallback(
-    () =>
-      showFooter ? (
-        <FooterRow table={table} />
-      ) : null,
-    [showFooter, table]
-  );
+  const fixedFooterContent = (): React.JSX.Element | null =>
+    showFooter ? <FooterRow table={table} /> : null;
 
   const itemContent = useCallback(
     (rowIndex: number, row: Row<unknown[]>) => {
@@ -264,7 +273,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ searchText, tabId }) => {
         </>
       );
     },
-    [comparisonResult]
+    [comparisonResult],
   );
 
   return (
