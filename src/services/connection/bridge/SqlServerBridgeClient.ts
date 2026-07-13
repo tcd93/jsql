@@ -1,4 +1,4 @@
-import { ChildProcess, spawn } from "child_process";
+import { ChildProcess, spawn, spawnSync } from "child_process";
 import { EventEmitter } from "events";
 import * as fs from "fs";
 import * as os from "os";
@@ -23,8 +23,15 @@ interface PendingRequest {
 interface OutputLogger {
   writeToOutput(
     message: string,
-    level?: "INFO" | "ERROR" | "WARNING" | "DEBUG"
+    level?: "INFO" | "ERROR" | "WARNING" | "DEBUG",
   ): void;
+}
+
+interface BridgeLaunchTarget {
+  command: string;
+  args: string[];
+  cwd: string;
+  resolvedPath: string;
 }
 
 export interface SqlServerBridgeClientOptions {
@@ -47,7 +54,7 @@ export class SqlServerBridgeClient extends EventEmitter {
     this.outputLogger = options.outputLogger;
   }
 
-  private getBridgeExecutablePath(): string {
+  private getBridgeLaunchTarget(): BridgeLaunchTarget {
     const platform = os.platform();
     const arch = os.arch();
     const executableName =
@@ -57,50 +64,151 @@ export class SqlServerBridgeClient extends EventEmitter {
     const bridgeDir = path.join(
       this.extensionPath,
       "bridge",
-      "SqlServerBridge"
+      "SqlServerBridge",
     );
     const runtimeId = this.getRuntimeId(platform, arch);
 
-    // Search order: Release > Debug, runtime-specific > framework-dependent, exe > dll
-    const searchPaths = [
-      // Release, runtime-specific
-      path.join(
-        bridgeDir,
-        "bin",
-        "Release",
-        "net9.0",
-        runtimeId,
-        executableName
-      ),
-      path.join(bridgeDir, "bin", "Release", "net9.0", runtimeId, dllName),
-      // Debug, runtime-specific
-      path.join(bridgeDir, "bin", "Debug", "net9.0", runtimeId, executableName),
-      path.join(bridgeDir, "bin", "Debug", "net9.0", runtimeId, dllName),
-      // Framework-dependent
-      path.join(bridgeDir, "bin", "Release", "net9.0", executableName),
-      path.join(bridgeDir, "bin", "Release", "net9.0", dllName),
-      path.join(bridgeDir, "bin", "Debug", "net9.0", executableName),
-      path.join(bridgeDir, "bin", "Debug", "net9.0", dllName),
-    ];
+    const targetFrameworks = ["net10.0", "net9.0"];
+
+    // Search order: .NET 10 > .NET 9, Release > Debug, runtime-specific > framework-dependent, exe > dll
+    const searchPaths: string[] = [];
+    for (const tfm of targetFrameworks) {
+      searchPaths.push(
+        // Release, runtime-specific
+        path.join(bridgeDir, "bin", "Release", tfm, runtimeId, executableName),
+        path.join(bridgeDir, "bin", "Release", tfm, runtimeId, dllName),
+        // Release, Framework-dependent
+        path.join(bridgeDir, "bin", "Release", tfm, executableName),
+        path.join(bridgeDir, "bin", "Release", tfm, dllName),
+        // Debug, runtime-specific
+        path.join(bridgeDir, "bin", "Debug", tfm, runtimeId, executableName),
+        path.join(bridgeDir, "bin", "Debug", tfm, runtimeId, dllName),
+        // Debug, Framework-dependent
+        path.join(bridgeDir, "bin", "Debug", tfm, executableName),
+        path.join(bridgeDir, "bin", "Debug", tfm, dllName),
+      );
+    }
 
     for (const searchPath of searchPaths) {
       if (fs.existsSync(searchPath)) {
-        return searchPath;
+        // The bridge is built framework-dependent (dotnet build, not a
+        // self-contained publish), so both the apphost .exe and the .dll
+        // require the shared .NET runtime to be installed on the machine.
+        this.ensureDotnetRuntimeAvailable();
+
+        if (searchPath.toLowerCase().endsWith(".dll")) {
+          return {
+            command: "dotnet",
+            args: [searchPath],
+            cwd: path.dirname(searchPath),
+            resolvedPath: searchPath,
+          };
+        }
+
+        return {
+          command: searchPath,
+          args: [],
+          cwd: path.dirname(searchPath),
+          resolvedPath: searchPath,
+        };
       }
     }
 
-    // Return first path as fallback
-    return searchPaths[0];
+    const diagnostics = [
+      "Bridge executable not found.",
+      `Platform=${platform}, arch=${arch}, runtimeId=${runtimeId}`,
+      `Base directory: ${bridgeDir}`,
+      "Checked paths:",
+      ...searchPaths.map((p) => `- ${p}`),
+    ].join("\n");
+
+    this.outputLogger?.writeToOutput(`[Bridge] ${diagnostics}`, "ERROR");
+    throw new Error(diagnostics);
   }
 
   private getRuntimeId(platform: string, arch: string): string {
+    // Architecture policy:
+    // - Use native runtime IDs for supported platform/arch combinations.
+    // - Fall back to framework-dependent .dll probing when native runtime-specific outputs are unavailable.
     if (platform === "win32") {
-      return arch === "x64" ? "win-x64" : "win-x86";
+      if (arch === "x64") {
+        return "win-x64";
+      }
+      if (arch === "arm64") {
+        return "win-arm64";
+      }
+
+      throw new Error(
+        `Unsupported architecture for Windows bridge: ${arch}. Supported Windows architectures are x64 and arm64.`,
+      );
     }
+
     if (platform === "darwin") {
-      return arch === "arm64" ? "osx-arm64" : "osx-x64";
+      if (arch === "x64") {
+        return "osx-x64";
+      }
+      if (arch === "arm64") {
+        return "osx-arm64";
+      }
+
+      throw new Error(
+        `Unsupported architecture for macOS bridge: ${arch}. Supported macOS architectures are x64 and arm64.`,
+      );
     }
-    return arch === "arm64" ? "linux-arm64" : "linux-x64";
+
+    if (platform === "linux") {
+      if (arch === "x64") {
+        return "linux-x64";
+      }
+      if (arch === "arm64") {
+        return "linux-arm64";
+      }
+
+      throw new Error(
+        `Unsupported architecture for Linux bridge: ${arch}. Supported Linux architectures are x64 and arm64.`,
+      );
+    }
+
+    throw new Error(`Unsupported platform for bridge: ${platform}`);
+  }
+
+  private ensureDotnetRuntimeAvailable(): void {
+    const result = spawnSync("dotnet", ["--list-runtimes"], {
+      encoding: "utf8",
+    });
+
+    if (result.error) {
+      const diagnostics =
+        "The bridge requires .NET runtime, but dotnet was not found on PATH.";
+      this.outputLogger?.writeToOutput(`[Bridge] ${diagnostics}`, "ERROR");
+      throw new Error(diagnostics);
+    }
+
+    if (result.status !== 0) {
+      const diagnostics = [
+        "Failed to query installed .NET runtimes (dotnet --list-runtimes).",
+        `Exit code: ${result.status ?? "unknown"}`,
+        `stderr: ${(result.stderr ?? "").trim()}`,
+      ].join("\n");
+      this.outputLogger?.writeToOutput(`[Bridge] ${diagnostics}`, "ERROR");
+      throw new Error(diagnostics);
+    }
+
+    const runtimes = result.stdout ?? "";
+    const hasSupportedRuntime =
+      /Microsoft\.NETCore\.App\s+10\./.test(runtimes) ||
+      /Microsoft\.NETCore\.App\s+9\./.test(runtimes);
+
+    if (!hasSupportedRuntime) {
+      const diagnostics = [
+        "No supported .NET runtime found for SQL Server bridge.",
+        "Expected Microsoft.NETCore.App 9.x or 10.x.",
+        "Installed runtimes:",
+        runtimes.trim() || "(none)",
+      ].join("\n");
+      this.outputLogger?.writeToOutput(`[Bridge] ${diagnostics}`, "ERROR");
+      throw new Error(diagnostics);
+    }
   }
 
   private async ensureProcessStarted(): Promise<void> {
@@ -112,11 +220,11 @@ export class SqlServerBridgeClient extends EventEmitter {
       return;
     }
 
-    const executablePath = this.getBridgeExecutablePath();
+    const launchTarget = this.getBridgeLaunchTarget();
 
-    this.process = spawn(executablePath, [], {
+    this.process = spawn(launchTarget.command, launchTarget.args, {
       stdio: ["pipe", "pipe", "pipe"],
-      cwd: path.dirname(executablePath),
+      cwd: launchTarget.cwd,
     });
 
     this.process.stdout?.setEncoding("utf8");
@@ -129,10 +237,27 @@ export class SqlServerBridgeClient extends EventEmitter {
     });
 
     this.process.stderr?.on("data", (data: string) => {
+      const trimmed = data.trim();
+      if (
+        trimmed.includes("You must install or update .NET") ||
+        trimmed.includes("Framework:") ||
+        trimmed.includes("Microsoft.NETCore.App")
+      ) {
+        this.outputLogger?.writeToOutput(
+          `[Bridge] .NET runtime startup issue detected while launching ${launchTarget.resolvedPath}: ${trimmed}`,
+          "ERROR",
+        );
+      }
       console.error(`[Bridge stderr] ${data}`);
     });
 
     this.process.on("error", (error) => {
+      this.outputLogger?.writeToOutput(
+        `[Bridge] Process start failed. Command='${launchTarget.command}' Args='${launchTarget.args.join(
+          " ",
+        )}' Error='${error.message}'`,
+        "ERROR",
+      );
       console.error(`[Bridge process error]`, error);
       this.cleanup();
     });
@@ -173,8 +298,8 @@ export class SqlServerBridgeClient extends EventEmitter {
             new Error(
               `Failed to parse bridge response: ${
                 error instanceof Error ? error.message : String(error)
-              }`
-            )
+              }`,
+            ),
           );
         }
       } else {
@@ -185,10 +310,7 @@ export class SqlServerBridgeClient extends EventEmitter {
     }
 
     // Handle log messages separately
-    if (
-      message?.payload &&
-      isLogPayload(message.payload)
-    ) {
+    if (message?.payload && isLogPayload(message.payload)) {
       this.handleLog(message.payload);
       return;
     }
@@ -217,7 +339,7 @@ export class SqlServerBridgeClient extends EventEmitter {
       pending.resolve(lastPayload);
     } else {
       console.warn(
-        `[Bridge] Received done message for unknown request ID: ${message.id}`
+        `[Bridge] Received done message for unknown request ID: ${message.id}`,
       );
     }
   }
@@ -239,7 +361,7 @@ export class SqlServerBridgeClient extends EventEmitter {
         this.handleStreamingPayload(message.payload);
       } else {
         console.warn(
-          `[Bridge] Received payload for unknown request ID: ${message.id}`
+          `[Bridge] Received payload for unknown request ID: ${message.id}`,
         );
       }
     }
@@ -258,7 +380,7 @@ export class SqlServerBridgeClient extends EventEmitter {
     } else {
       this.outputLogger?.writeToOutput(
         `[Bridge] [UNKNOWN] ${JSON.stringify(log)}`,
-        "DEBUG"
+        "DEBUG",
       );
       console.debug(`[Bridge] [UNKNOWN] ${JSON.stringify(log)}`);
       return;
@@ -271,7 +393,7 @@ export class SqlServerBridgeClient extends EventEmitter {
 
   async sendRequest(
     method: BridgeMethod | string,
-    params: unknown
+    params: unknown,
   ): Promise<ReturnPayload | null> {
     try {
       await this.ensureProcessStarted();
@@ -317,8 +439,8 @@ export class SqlServerBridgeClient extends EventEmitter {
           new Error(
             `Failed to send request: ${
               error instanceof Error ? error.message : String(error)
-            }`
-          )
+            }`,
+          ),
         );
       }
     });
@@ -326,7 +448,7 @@ export class SqlServerBridgeClient extends EventEmitter {
 
   private createErrorPayload(
     method: BridgeMethod | string,
-    errorMessage: string
+    errorMessage: string,
   ): ReturnPayload {
     const methodStr =
       typeof method === "string" ? method : BridgeMethod[method];
