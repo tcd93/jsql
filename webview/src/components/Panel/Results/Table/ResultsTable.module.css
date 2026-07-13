@@ -15,13 +15,13 @@
   font-style: italic;
 }
 
-/* 
-table-layout: fixed; and width: 100%; are required for column resizing to work
-https://stackoverflow.com/questions/78435200/tanstack-table-v8-not-resizing-columns 
+/*
+table-layout: fixed is required for column resizing to work
+https://stackoverflow.com/questions/78435200/tanstack-table-v8-not-resizing-columns
 */
 .resultsTable table {
   table-layout: fixed;
-  width: 100%;
+  width: var(--table-total-size, 100%);
   border-collapse: separate;
   border-spacing: 0;
   outline: none;

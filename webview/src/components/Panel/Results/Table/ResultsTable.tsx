@@ -23,6 +23,7 @@ import { useColumnAggregation } from "../../../../hooks/useColumnAggregation";
 import { useTableBehavior } from "../../../../hooks/useTableBehavior";
 import { useFooterStore } from "../../../../store/footerStore";
 import { useTabStore } from "../../../../store/tabStore";
+import { estimateColumnWidth } from "../../../../utils/columnWidthUtils";
 import {
   mapColumns,
   compareTabData,
@@ -38,6 +39,9 @@ interface ResultsTableProps {
   searchText: string;
   tabId: string;
 }
+
+// Number of leading rows sampled to estimate a column's natural content width.
+const COLUMN_WIDTH_SAMPLE_SIZE = 50;
 
 const ResultsTable: React.FC<ResultsTableProps> = ({ searchText, tabId }) => {
   const schema = useTabStore((state) => state.getTab(tabId)?.schema);
@@ -113,9 +117,12 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ searchText, tabId }) => {
       minSize: 45,
     };
 
+    const sampleRows = batchData.slice(0, COLUMN_WIDTH_SAMPLE_SIZE);
+
     const dataColumns = schema.map((field, index) => {
       // Ensure uniqueness
       const columnId = `${field.name}_${index}`;
+      const sampleValues = sampleRows.map((row) => row[index]);
 
       return {
         id: columnId,
@@ -123,14 +130,18 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ searchText, tabId }) => {
         aggregationFn: field.aggregationFn ?? "auto",
         header: field.name,
         meta: { type: field.type },
-        size: 150,
+        size: estimateColumnWidth(field.name, sampleValues, field.type),
         minSize: 60,
         maxSize: 800,
       };
     });
 
     return [rowNumberColumn, ...dataColumns];
-  }, [schema]);
+    // Recompute the content-based width estimate as rows stream in, but only
+    // until we've gathered enough of a sample (further rows shouldn't reshuffle
+    // widths once a user may already be resizing columns).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [schema, Math.min(batchData.length, COLUMN_WIDTH_SAMPLE_SIZE)]);
 
   const prevSchemaRef = useRef(schema);
 
@@ -223,6 +234,15 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ searchText, tabId }) => {
     {} as Record<string, number>,
   );
 
+  // Let the table size itself to its columns' natural width instead of always
+  // stretching to fill the container (see ResultsTable.module.css)
+  const tableWidthStyle: React.CSSProperties =
+    table.getFlatHeaders().length > 0
+      ? ({
+          "--table-total-size": `${table.getTotalSize()}px`,
+        } as React.CSSProperties)
+      : {};
+
   const virtuosoComponents = useMemo(
     () => ({
       TableRow: (
@@ -282,6 +302,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ searchText, tabId }) => {
       className={`${styles.resultsTable}`}
       style={{
         ...columnSizeVars,
+        ...tableWidthStyle,
       }}
       tabIndex={0}
       role="grid"
