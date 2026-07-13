@@ -8,7 +8,7 @@ import { AggregationContextMenu } from "./AggregationContextMenu";
 import styles from "./HeaderCell.module.css";
 import { HeaderContextMenu } from "./HeaderContextMenu";
 
-export const HeaderCell = ({
+const HeaderCellFunc = ({
   header,
 }: {
   header: Header<unknown[], unknown>;
@@ -16,13 +16,13 @@ export const HeaderCell = ({
 }): React.JSX.Element => {
   const contextMenu = useGlobalContextMenuStore((state) => state.contextMenu);
   const setContextMenu = useGlobalContextMenuStore(
-    (state) => state.setContextMenu
+    (state) => state.setContextMenu,
   );
   const isContextMenuOpen = useGlobalContextMenuStore((state) =>
-    state.isHeaderContextMenuOpen(header.column.id)
+    state.isHeaderContextMenuOpen(header.column.id),
   );
   const isAggregationContextMenuOpen = useGlobalContextMenuStore((state) =>
-    state.isAggregationContextMenuOpen(header.column.id)
+    state.isAggregationContextMenuOpen(header.column.id),
   );
   const selectColumn = useSmartDrillStore((state) => state.selectColumn);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -39,7 +39,7 @@ export const HeaderCell = ({
         columnId: header.column.id,
       });
     },
-    [header.column.id, setContextMenu]
+    [header.column.id, setContextMenu],
   );
 
   const handleHeaderDoubleClick = useCallback(
@@ -58,7 +58,7 @@ export const HeaderCell = ({
       event.stopPropagation();
       selectColumn(header);
     },
-    [header, selectColumn]
+    [header, selectColumn],
   );
 
   const handleAggregationIconClick = useCallback(
@@ -86,7 +86,7 @@ export const HeaderCell = ({
       });
       updateTab(activeTabId, { schema: updatedSchemaWithFn });
     },
-    []
+    [],
   );
 
   const handleAggregationContextMenu = useCallback(
@@ -100,7 +100,7 @@ export const HeaderCell = ({
         columnId: header.column.id,
       });
     },
-    [header.column.id, setContextMenu]
+    [header.column.id, setContextMenu],
   );
 
   const handleDragStart = useCallback(
@@ -109,12 +109,12 @@ export const HeaderCell = ({
         "text/plain",
         new GroupedColumn(
           header.column.id,
-          header.column.columnDef.header?.toString() ?? ""
-        ).toJson()
+          header.column.columnDef.header?.toString() ?? "",
+        ).toJson(),
       );
       event.dataTransfer.effectAllowed = "move";
     },
-    [header.column.columnDef.header, header.column.id]
+    [header.column.columnDef.header, header.column.id],
   );
   const handleDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
@@ -169,7 +169,7 @@ export const HeaderCell = ({
         console.error("Failed to handle drop:", error);
       }
     },
-    [header]
+    [header],
   );
   const isPinned = header.column.getIsPinned();
   const isGrouped = header.column.getIsGrouped();
@@ -250,8 +250,8 @@ export const HeaderCell = ({
                 {header.column.getIsSorted() === "asc"
                   ? "↑"
                   : header.column.getIsSorted() === "desc"
-                  ? "↓"
-                  : "↕"}
+                    ? "↓"
+                    : "↕"}
               </span>
             )}
             {header.column.getCanResize() && (
@@ -305,3 +305,11 @@ export const HeaderCell = ({
     </>
   );
 };
+
+// NOTE: `table` from useReactTable keeps a stable object identity across
+// renders (it mutates internally via setOptions), so memoizing these with
+// memoizing would never recompute and react-virtuoso's memoized
+// sticky header/footer wrapper would never re-render (e.g. column reordering,
+// sorting, and grouping changes wouldn't be reflected in the header/footer).
+// Recreate them on every render so Virtuoso always picks up the latest state.
+export const HeaderCell = HeaderCellFunc;

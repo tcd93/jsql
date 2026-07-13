@@ -16,7 +16,7 @@ import React, {
   useCallback,
   useState,
 } from "react";
-import { TableVirtuoso } from "react-virtuoso";
+import { TableComponents, TableVirtuoso } from "react-virtuoso";
 import { useShallow } from "zustand/react/shallow";
 import { useBatchedData } from "../../../../hooks/useBatchedData";
 import { useColumnAggregation } from "../../../../hooks/useColumnAggregation";
@@ -42,6 +42,15 @@ interface ResultsTableProps {
 
 // Number of leading rows sampled to estimate a column's natural content width.
 const COLUMN_WIDTH_SAMPLE_SIZE = 50;
+
+const TableRowFunc = (
+  props: {
+    item: Row<unknown[]>;
+  } & React.HTMLAttributes<HTMLTableRowElement>,
+): React.JSX.Element => {
+  const isGrouped = props.item.getIsGrouped();
+  return <tr {...props} className={isGrouped ? styles.groupedRow : ""} />;
+};
 
 const ResultsTable: React.FC<ResultsTableProps> = ({ searchText, tabId }) => {
   const schema = useTabStore((state) => state.getTab(tabId)?.schema);
@@ -72,7 +81,6 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ searchText, tabId }) => {
   const batchData = useBatchedData(tabId, {
     batchSize: 50,
     batchInterval: 50,
-    renderThreshold: 10,
   });
 
   // Monitor column selections for aggregation metrics
@@ -243,26 +251,13 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ searchText, tabId }) => {
         } as React.CSSProperties)
       : {};
 
-  const virtuosoComponents = useMemo(
-    () => ({
-      TableRow: (
-        props: {
-          item: Row<unknown[]>;
-        } & React.HTMLAttributes<HTMLTableRowElement>,
-      ): React.JSX.Element => {
-        const isGrouped = props.item.getIsGrouped();
-        return <tr {...props} className={isGrouped ? styles.groupedRow : ""} />;
-      },
+  const virtuosoComponents: TableComponents<Row<unknown[]>, unknown[]> = {
+    TableRow: React.memo(TableRowFunc, (prevProps, nextProps) => {
+      // Only re-render if the row's data has changed (e.g., due to sorting or filtering)
+      return prevProps.item.original === nextProps.item.original;
     }),
-    [],
-  );
+  };
 
-  // NOTE: `table` from useReactTable keeps a stable object identity across
-  // renders (it mutates internally via setOptions), so memoizing these with
-  // useCallback([table]) would never recompute and react-virtuoso's memoized
-  // sticky header/footer wrapper would never re-render (e.g. column reordering,
-  // sorting, and grouping changes wouldn't be reflected in the header/footer).
-  // Recreate them on every render so Virtuoso always picks up the latest state.
   const fixedHeaderContent = (): React.JSX.Element => (
     <HeaderRow table={table} />
   );

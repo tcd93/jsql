@@ -5,18 +5,26 @@ import { useTabStore } from "../store/tabStore";
 interface BatchConfig {
   batchSize: number;
   batchInterval: number;
-  renderThreshold: number;
 }
 
 const DEFAULT_CONFIG: BatchConfig = {
   batchSize: 50,
   batchInterval: 50,
-  renderThreshold: 10,
 };
 
 /**
- * Custom hook that processes incremental data updates using RxJS
- * Listens to tab store's incremental data stream for efficient batching
+ * React hook that subscribes to a tab's incremental data stream and exposes
+ * the accumulated rows as React state.
+ *
+ * Incoming updates are buffered using RxJS to reduce render frequency:
+ * - Collects incoming row batches for a configurable time window or batch size.
+ * - Merges buffered updates into a single batch.
+ * - Accumulates all received rows over time.
+ * - Triggers React state updates only once per buffered batch instead of on
+ *   every individual stream emission.
+ *
+ * This is intended for high-frequency data streams (e.g. streaming query
+ * results) where batching significantly improves rendering performance.
  */
 export const useBatchedData = (
   tabId: string,

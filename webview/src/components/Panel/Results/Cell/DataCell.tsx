@@ -1,5 +1,5 @@
 import { Cell, flexRender } from "@tanstack/react-table";
-import React, { useCallback, useMemo } from "react";
+import React, { JSX, useCallback, useMemo } from "react";
 import { useGlobalContextMenuStore } from "../../../../store/globalContextMenuStore";
 import { useSmartDrillStore } from "../../../../store/smartDrillStore";
 import { ComparisonResult } from "../../../../utils/comparisonUtils";
@@ -7,22 +7,22 @@ import { formatCell } from "../../../../utils/formatUtils";
 import { CellContextMenu } from "./CellContextMenu";
 import styles from "./DataCell.module.css";
 
-const DataCell = ({
+const DataCellFunc = ({
   cell,
-  comparisonResult,
   rowIndex,
+  comparisonResult,
 }: {
   cell: Cell<unknown[], unknown>;
-  comparisonResult?: ComparisonResult | null;
   rowIndex?: number;
-}): React.JSX.Element => {
+  comparisonResult?: ComparisonResult | null;
+}): JSX.Element => {
   const { column } = cell;
 
   const setContextMenu = useGlobalContextMenuStore(
-    (state) => state.setContextMenu
+    (state) => state.setContextMenu,
   );
-  const isCellContextMenuOpen = useGlobalContextMenuStore(
-    (state) => state.isCellContextMenuOpen(cell.id)
+  const isCellContextMenuOpen = useGlobalContextMenuStore((state) =>
+    state.isCellContextMenuOpen(cell.id),
   );
 
   // Only subscribe to whether this specific cell is selected/anchor
@@ -30,18 +30,18 @@ const DataCell = ({
   const cellColumnId = column.id;
 
   const isSelected = useSmartDrillStore((state) =>
-    state.selectedCells.has(cell.id)
+    state.selectedCells.has(cell.id),
   );
 
   const isAnchor = useSmartDrillStore(
     (state) =>
       state.anchorCell?.row.id === cellRowId &&
-      state.anchorCell.column.id === cellColumnId
+      state.anchorCell.column.id === cellColumnId,
   );
 
   const selectCell = useSmartDrillStore((state) => state.selectCell);
   const toggleCellSelection = useSmartDrillStore(
-    (state) => state.toggleCellSelection
+    (state) => state.toggleCellSelection,
   );
   const selectRectangle = useSmartDrillStore((state) => state.selectRectangle);
 
@@ -67,7 +67,7 @@ const DataCell = ({
         selectCell(cell);
       }
     },
-    [selectRectangle, cell, toggleCellSelection, selectCell]
+    [selectRectangle, cell, toggleCellSelection, selectCell],
   );
 
   const handleContextMenu = useCallback(
@@ -91,7 +91,7 @@ const DataCell = ({
         cellId: cell.id,
       });
     },
-    [selectCell, cell, setContextMenu]
+    [selectCell, cell, setContextMenu],
   );
 
   const isPinned = column.getIsPinned();
@@ -112,7 +112,7 @@ const DataCell = ({
     if (isRowGrouped) {
       return flexRender(
         cell.column.columnDef.aggregatedCell,
-        cell.getContext()
+        cell.getContext(),
       );
     }
     if (formattedValue === null && !isRowGrouped) {
@@ -174,5 +174,13 @@ const DataCell = ({
     </>
   );
 };
+
+const DataCell = React.memo(DataCellFunc, (prevProps, nextProps) => {
+  // Only re-render if the cell value has changed
+  const prevValue = prevProps.cell.getValue();
+  const nextValue = nextProps.cell.getValue();
+
+  return prevValue === nextValue;
+});
 
 export default DataCell;

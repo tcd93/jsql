@@ -3,7 +3,7 @@ import React from "react";
 import commonCellStyles from "../Cell/Cell.common.module.css";
 import styles from "./RowNumberCell.module.css";
 
-export const RowNumberCell = ({
+const RowNumberCellFunc = ({
   cell,
   rowIndex,
 }: {
@@ -69,3 +69,11 @@ export const RowNumberCell = ({
     </td>
   );
 };
+
+export const RowNumberCell = React.memo(
+  RowNumberCellFunc,
+  (prevProps, nextProps) => {
+    // Only re-render if the row index has changed
+    return prevProps.rowIndex === nextProps.rowIndex;
+  },
+);
