@@ -10,9 +10,6 @@ public abstract class BridgeCommandParams {}
 /// </summary>
 public class CreateConnectionParams : BridgeCommandParams
 {
-    [JsonPropertyName("connectionString")]
-    public string? ConnectionString { get; set; }
-
     [JsonPropertyName("connectionName")]
     public string ConnectionName { get; set; } = string.Empty;
 
@@ -48,6 +45,9 @@ public class CreateConnectionParams : BridgeCommandParams
 
     [JsonPropertyName("applicationName")]
     public string? ApplicationName { get; set; }
+
+    [JsonPropertyName("applicationIntent")]
+    public string? ApplicationIntent { get; set; }
 
     [JsonPropertyName("accessToken")]
     public string? AccessToken { get; set; }

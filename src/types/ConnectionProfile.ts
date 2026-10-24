@@ -33,10 +33,6 @@ export interface NoneConnectionProfile extends _ConnectionProfile {
 
 export interface SqlServerConnectionProfile extends _ConnectionProfile {
   provider: DatabaseProvider.SqlServer;
-  /**
-   * If provided, this connection string will be used directly instead of building one from the other parameters
-   */
-  connectionString?: string;
   /** Windows SPN for Kerberos authentication, might be required for Integrated auth - you can check SSMS > Management > SQL Server Logs > Current for the SPN server name */
   serverSPN?: string;
 

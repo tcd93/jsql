@@ -29,7 +29,6 @@ public class BridgeIntegrationTests : IClassFixture<LocalDbFixture>, IDisposable
         var sw = Stopwatch.StartNew();
         var requestId = Guid.NewGuid().ToString();
         var connectionName = "test-conn-1";
-        var connectionString = LocalDbHelper.GetLocalDbConnectionString();
         sw.Stop();
         _output.WriteLine($"[TIMING] Setup: {sw.ElapsedMilliseconds}ms");
 
@@ -37,11 +36,7 @@ public class BridgeIntegrationTests : IClassFixture<LocalDbFixture>, IDisposable
         {
             Id = requestId,
             Method = Method.CreateConnection,
-            Params = new CreateConnectionParams
-            {
-                ConnectionName = connectionName,
-                ConnectionString = connectionString
-            }
+            Params = CreateLocalDbParams(connectionName)
         };
 
         sw.Restart();
@@ -89,7 +84,7 @@ public class BridgeIntegrationTests : IClassFixture<LocalDbFixture>, IDisposable
     }
 
     [Fact]
-    public async Task CreateConnection_WithInvalidConnectionString_WritesErrorToStdout()
+    public async Task CreateConnection_WithInvalidParameters_WritesErrorToStdout()
     {
         var sw = Stopwatch.StartNew();
         var requestId = Guid.NewGuid().ToString();
@@ -102,7 +97,11 @@ public class BridgeIntegrationTests : IClassFixture<LocalDbFixture>, IDisposable
             Params = new CreateConnectionParams
             {
                 ConnectionName = connectionName,
-                ConnectionString = "Server=localhost;InvalidKeyword=x;"
+                Host = "localhost",
+                Port = 70000,
+                Authentication = "Sql Password",
+                Username = "InvalidUser",
+                Password = "InvalidPassword"
             }
         };
 
@@ -146,17 +145,12 @@ public class BridgeIntegrationTests : IClassFixture<LocalDbFixture>, IDisposable
     public async Task ExecuteQuery_WithValidConnection_ReturnsQueryResults()
     {
         var connectionName = "test-conn-query";
-        var connectionString = LocalDbHelper.GetLocalDbConnectionString(_fixture.DatabaseName);
 
         var createRequest = new BridgeRequest
         {
             Id = Guid.NewGuid().ToString(),
             Method = Method.CreateConnection,
-            Params = new CreateConnectionParams
-            {
-                ConnectionName = connectionName,
-                ConnectionString = connectionString
-            }
+            Params = CreateLocalDbParams(connectionName, _fixture.DatabaseName)
         };
 
         await _bridge.SendRequestAsync(createRequest);
@@ -200,7 +194,7 @@ public class BridgeIntegrationTests : IClassFixture<LocalDbFixture>, IDisposable
 
         var firstRow = payload.Data.Rows[0];
         Assert.Equal(3, firstRow.Count);
-        
+
         var firstValue = firstRow[0];
         var firstLong = firstValue switch
         {
@@ -210,9 +204,9 @@ public class BridgeIntegrationTests : IClassFixture<LocalDbFixture>, IDisposable
             _ => Convert.ToInt64(firstValue)
         };
         Assert.Equal(1L, firstLong);
-        
+
         Assert.Equal("Item1", firstRow[1]?.ToString());
-        
+
         var thirdValue = firstRow[2];
         var thirdLong = thirdValue switch
         {
@@ -229,17 +223,12 @@ public class BridgeIntegrationTests : IClassFixture<LocalDbFixture>, IDisposable
     {
         var sw = Stopwatch.StartNew();
         var connectionName = "test-conn-streaming";
-        var connectionString = LocalDbHelper.GetLocalDbConnectionString(_fixture.DatabaseName);
 
         var createRequest = new BridgeRequest
         {
             Id = Guid.NewGuid().ToString(),
             Method = Method.CreateConnection,
-            Params = new CreateConnectionParams
-            {
-                ConnectionName = connectionName,
-                ConnectionString = connectionString
-            }
+            Params = CreateLocalDbParams(connectionName, _fixture.DatabaseName)
         };
 
         await _bridge.SendRequestAsync(createRequest);
@@ -284,7 +273,7 @@ public class BridgeIntegrationTests : IClassFixture<LocalDbFixture>, IDisposable
             .Select(m => m.Payload as ExecuteStreamingQueryPayload)
             .ToList();
         _output.WriteLine($"ExecuteStreamingQueryPayload messages: {streamingPayloads.Count}");
-        
+
         var events = streamingPayloads
             .Where(p => p != null)
             .Select(p => p!.Event.ToString())
@@ -300,7 +289,7 @@ public class BridgeIntegrationTests : IClassFixture<LocalDbFixture>, IDisposable
             .Where(p => p != null && p.Event == StreamingEvent.Data)
             .ToList();
         Assert.True(dataMessages.Count >= 1, $"Expected at least 1 data message, got {dataMessages.Count}");
-        
+
         var dataMessage = dataMessages.First();
         Assert.NotNull(dataMessage?.Data);
         Assert.True(dataMessage.Data is StreamingRows);
@@ -322,17 +311,12 @@ public class BridgeIntegrationTests : IClassFixture<LocalDbFixture>, IDisposable
     public async Task CloseConnection_WithValidConnection_ClosesSuccessfully()
     {
         var connectionName = "test-conn-close";
-        var connectionString = LocalDbHelper.GetLocalDbConnectionString(_fixture.DatabaseName);
 
         var createRequest = new BridgeRequest
         {
             Id = Guid.NewGuid().ToString(),
             Method = Method.CreateConnection,
-            Params = new CreateConnectionParams
-            {
-                ConnectionName = connectionName,
-                ConnectionString = connectionString
-            }
+            Params = CreateLocalDbParams(connectionName, _fixture.DatabaseName)
         };
 
         await _bridge.SendRequestAsync(createRequest);
@@ -371,18 +355,13 @@ public class BridgeIntegrationTests : IClassFixture<LocalDbFixture>, IDisposable
     public async Task MultipleRequests_ProcessedInOrder()
     {
         var connectionName = "test-conn-multi";
-        var connectionString = LocalDbHelper.GetLocalDbConnectionString(_fixture.DatabaseName);
 
         var request1Id = Guid.NewGuid().ToString();
         var request1 = new BridgeRequest
         {
             Id = request1Id,
             Method = Method.CreateConnection,
-            Params = new CreateConnectionParams
-            {
-                ConnectionName = connectionName,
-                ConnectionString = connectionString
-            }
+            Params = CreateLocalDbParams(connectionName, _fixture.DatabaseName)
         };
 
         var request2Id = Guid.NewGuid().ToString();
@@ -422,4 +401,18 @@ public class BridgeIntegrationTests : IClassFixture<LocalDbFixture>, IDisposable
     {
         _bridge?.Dispose();
     }
+
+    private static CreateConnectionParams CreateLocalDbParams(
+        string connectionName,
+        string database = "master"
+    ) =>
+        new()
+        {
+            ConnectionName = connectionName,
+            Host = @"(localdb)\MSSQLLocalDB",
+            Database = database,
+            Authentication = AuthenticationMethods.IntegratedSecurity,
+            Encrypt = false,
+            TrustServerCertificate = true
+        };
 }

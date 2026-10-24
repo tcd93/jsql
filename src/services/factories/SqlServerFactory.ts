@@ -18,12 +18,12 @@ export class SqlServerFactory extends AbstractDatabaseFactory {
 
   dispose(): void {
     super.dispose();
-    this.connectionServiceCache.forEach(service => service.dispose());
+    this.connectionServiceCache.forEach((service) => service.dispose());
     this.connectionServiceCache.clear();
   }
 
   getConnectionService(
-    connectionProfile: ConnectionProfile
+    connectionProfile: ConnectionProfile,
   ): ConnectionService {
     const cacheKey = this.getCacheKey(connectionProfile);
     let service = this.connectionServiceCache.get(cacheKey);
@@ -41,12 +41,12 @@ export class SqlServerFactory extends AbstractDatabaseFactory {
 
   /**
    * Generates a cache key specific to SQL Server connections.
-   * Includes provider-specific fields like authentication method,
-   * connection string, and server SPN.
+   * Includes provider-specific connection options and authentication details.
    */
   protected getCacheKey(profile: ConnectionProfile): string {
-    const sqlProfile = profile as import("../../types").SqlServerConnectionProfile;
-    
+    const sqlProfile =
+      profile as import("../../types").SqlServerConnectionProfile;
+
     const parts = [
       profile.provider,
       profile.host,
@@ -56,17 +56,13 @@ export class SqlServerFactory extends AbstractDatabaseFactory {
       profile.password ?? "",
       sqlProfile.authentication ?? "",
       sqlProfile.serverSPN ?? "",
+      sqlProfile.connectTimeout ?? "",
+      sqlProfile.commandTimeout ?? "",
+      sqlProfile.encrypt ?? "",
+      sqlProfile.trustServerCertificate ?? "",
+      sqlProfile.applicationIntent ?? "",
+      sqlProfile.clientId ?? "",
     ];
-
-    // Normalize connection string if provided
-    if (sqlProfile.connectionString) {
-      const normalizedConnectionString = this.normalizeConnectionString(
-        sqlProfile.connectionString
-      );
-      parts.push(normalizedConnectionString);
-    } else {
-      parts.push("");
-    }
 
     return parts.join("|");
   }
@@ -75,5 +71,5 @@ export class SqlServerFactory extends AbstractDatabaseFactory {
 // Register this factory when the module is loaded
 AbstractDatabaseFactory.registerFactory(
   DatabaseProvider.SqlServer,
-  async () => new SqlServerFactory()
+  async () => new SqlServerFactory(),
 );

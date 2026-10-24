@@ -70,9 +70,7 @@ public class ConnectionManager : IConnectionManager, IDisposable
             }
         }
 
-        var connectionString = string.IsNullOrWhiteSpace(parameters.ConnectionString)
-            ? BuildConnectionString(parameters)
-            : parameters.ConnectionString;
+        var connectionString = BuildConnectionString(parameters);
         var connection = new SqlConnection(connectionString);
 
         if (parameters.Authentication == AuthenticationMethods.ActiveDirectoryInteractive && 
@@ -136,11 +134,26 @@ public class ConnectionManager : IConnectionManager, IDisposable
         }
     }
 
-    private string BuildConnectionString(CreateConnectionParams parameters)
+    internal static string BuildConnectionString(CreateConnectionParams parameters)
     {
+        if (string.IsNullOrWhiteSpace(parameters.Host))
+        {
+            throw new ArgumentException("Server host cannot be null or empty", nameof(parameters));
+        }
+        if (parameters.Port is < 1 or > 65535)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(parameters),
+                "Server port must be between 1 and 65535"
+            );
+        }
+
+        var dataSource = parameters.Port == 1433
+            ? parameters.Host
+            : $"{parameters.Host},{parameters.Port}";
         SqlConnectionStringBuilder builder = new()
         {
-            DataSource = $"{parameters.Host},{parameters.Port}",
+            DataSource = dataSource,
             InitialCatalog = parameters.Database ?? "master",
             ConnectTimeout = parameters.ConnectTimeout ?? BridgeConstants.DefaultConnectTimeout,
             CommandTimeout = parameters.CommandTimeout ?? BridgeConstants.DefaultCommandTimeout,
@@ -149,21 +162,23 @@ public class ConnectionManager : IConnectionManager, IDisposable
             ApplicationName = parameters.ApplicationName ?? BridgeConstants.DefaultApplicationName
         };
 
-        if (parameters.Authentication == AuthenticationMethods.IntegratedSecurity ||
-            (string.IsNullOrEmpty(parameters.Authentication) && string.IsNullOrEmpty(parameters.Username) && string.IsNullOrEmpty(parameters.Password)))
-        {
-            builder.IntegratedSecurity = true;
-            if (!string.IsNullOrEmpty(parameters.ServerSPN))
-            {
-                builder.ServerSPN = parameters.ServerSPN;
-            }
-        }
-        else if (parameters.Authentication == AuthenticationMethods.ActiveDirectoryInteractive)
+        if (parameters.Authentication == AuthenticationMethods.ActiveDirectoryInteractive)
         {
             builder.Authentication = SqlAuthenticationMethod.ActiveDirectoryInteractive;
             if (!string.IsNullOrEmpty(parameters.ClientId))
             {
                 builder.UserID = parameters.ClientId;
+            }
+        }
+        else if (parameters.Authentication == AuthenticationMethods.IntegratedSecurity ||
+                 (string.IsNullOrEmpty(parameters.Authentication) &&
+                  string.IsNullOrEmpty(parameters.Username) &&
+                  string.IsNullOrEmpty(parameters.Password)))
+        {
+            builder.IntegratedSecurity = true;
+            if (!string.IsNullOrEmpty(parameters.ServerSPN))
+            {
+                builder.ServerSPN = parameters.ServerSPN;
             }
         }
         else
@@ -179,6 +194,13 @@ public class ConnectionManager : IConnectionManager, IDisposable
         }
 
         builder.Pooling = false;
+        if (Enum.TryParse<ApplicationIntent>(
+            parameters.ApplicationIntent,
+            ignoreCase: true,
+            out var applicationIntent))
+        {
+            builder.ApplicationIntent = applicationIntent;
+        }
         // Enable MARS (Multiple Active Result Sets) to allow concurrent queries on the same connection
         // Without this, SQL Server throws "There is already an open DataReader" when multiple queries run simultaneously
         builder.MultipleActiveResultSets = true;

@@ -118,17 +118,51 @@ export class MssqlExtensionService extends vscode.Disposable {
     }
 
     let connectionChanged: vscode.Disposable | undefined;
+    let debounceTimer: ReturnType<typeof setTimeout> | undefined;
     let timeout: ReturnType<typeof setTimeout> | undefined;
-    const connectionChange = new Promise<boolean>((resolve) => {
-      connectionChanged = api.onDidChangeActiveEditorConnection(() =>
-        resolve(true),
+    let isReadingConnection = false;
+    let hasPendingConnectionChange = false;
+    let scheduleConnectionRead: () => void;
+    const selectedConnection = new Promise<
+      SqlServerConnectionProfile | undefined
+    >((resolve, reject) => {
+      scheduleConnectionRead = (): void => {
+        if (debounceTimer) {
+          clearTimeout(debounceTimer);
+        }
+        debounceTimer = setTimeout(() => {
+          debounceTimer = undefined;
+          if (isReadingConnection) {
+            hasPendingConnectionChange = true;
+            return;
+          }
+          isReadingConnection = true;
+          void this.readCurrentConnection(session)
+            .then((profile) => {
+              if (profile) {
+                resolve(profile);
+              }
+            })
+            .catch(reject)
+            .finally(() => {
+              isReadingConnection = false;
+              if (hasPendingConnectionChange) {
+                hasPendingConnectionChange = false;
+                scheduleConnectionRead();
+              }
+            });
+        }, 100);
+      };
+      connectionChanged = api.onDidChangeActiveEditorConnection(
+        scheduleConnectionRead,
       );
-      timeout = setTimeout(() => resolve(false), 120_000);
+      timeout = setTimeout(() => resolve(undefined), 120_000);
     });
 
     try {
       await vscode.commands.executeCommand("mssql.connect");
-      if (!(await connectionChange)) {
+      const profile = await selectedConnection;
+      if (!profile) {
         this.outputService.writeToOutput(
           "No MSSQL connection was selected.",
           "INFO",
@@ -136,7 +170,7 @@ export class MssqlExtensionService extends vscode.Disposable {
         return undefined;
       }
 
-      return await this.readCurrentConnection(session);
+      return profile;
     } catch (error) {
       this.outputService.writeToOutput(
         `Error obtaining connection from MSSQL extension: ${error}`,
@@ -145,6 +179,9 @@ export class MssqlExtensionService extends vscode.Disposable {
       return undefined;
     } finally {
       connectionChanged?.dispose();
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
       if (timeout) {
         clearTimeout(timeout);
       }
@@ -242,18 +279,44 @@ export class MssqlExtensionService extends vscode.Disposable {
 
     // Extract basic connection details
     const dataSource =
-      params.get("data source") ?? params.get("server") ?? "localhost";
-    const database = params.get("initial catalog") ?? params.get("database");
+      params.get("data source") ??
+      params.get("server") ??
+      params.get("address") ??
+      params.get("addr") ??
+      params.get("network address") ??
+      "localhost";
+    const database =
+      params.get("initial catalog") ??
+      params.get("database") ??
+      params.get("initial database");
     const username = params.get("user id") ?? params.get("uid");
     const password = params.get("password") ?? params.get("pwd");
 
-    // Parse server and port from data source
-    const serverParts = dataSource.split(/[,:]/);
-    const host = serverParts[0].trim();
-    const port = serverParts.length > 1 ? parseInt(serverParts[1], 10) : 1433;
+    const normalizedDataSource = dataSource.trim().replace(/^tcp:/i, "");
+    const commaSeparator = normalizedDataSource.lastIndexOf(",");
+    const colonSeparator = normalizedDataSource.lastIndexOf(":");
+    const portSeparator =
+      commaSeparator > 0
+        ? commaSeparator
+        : colonSeparator > 0 &&
+            normalizedDataSource.indexOf(":") === colonSeparator &&
+            !normalizedDataSource.startsWith("[")
+          ? colonSeparator
+          : -1;
+    const explicitPort = Number.parseInt(
+      normalizedDataSource.slice(portSeparator + 1),
+      10,
+    );
+    const host =
+      portSeparator > 0 && !Number.isNaN(explicitPort)
+        ? normalizedDataSource.slice(0, portSeparator).trim()
+        : normalizedDataSource;
+    const port =
+      portSeparator > 0 && !Number.isNaN(explicitPort) ? explicitPort : 1433;
 
     // Extract advanced connection options
-    const connectTimeoutParam = params.get("connect timeout");
+    const connectTimeoutParam =
+      params.get("connect timeout") ?? params.get("connection timeout");
     const connectTimeout = connectTimeoutParam
       ? parseInt(connectTimeoutParam, 10)
       : undefined;
@@ -261,13 +324,13 @@ export class MssqlExtensionService extends vscode.Disposable {
     const commandTimeout = commandTimeoutParam
       ? parseInt(commandTimeoutParam, 10)
       : undefined;
-    const encrypt =
-      params.get("encrypt") === "true" || params.get("encrypt") === "True";
-    const trustServerCertificate =
-      params.get("trust server certificate") === "true" ||
-      params.get("trust server certificate") === "True";
-    const pooling =
-      params.get("pooling") !== "false" && params.get("pooling") !== "False";
+    const encrypt = this.parseBoolean(params.get("encrypt"));
+    const trustServerCertificate = this.parseBoolean(
+      params.get("trust server certificate"),
+    );
+    const pooling = params.has("pooling")
+      ? this.parseBoolean(params.get("pooling"))
+      : true;
     const minPoolSizeParam = params.get("min pool size");
     const minPoolSize = minPoolSizeParam
       ? parseInt(minPoolSizeParam, 10)
@@ -277,11 +340,15 @@ export class MssqlExtensionService extends vscode.Disposable {
       ? parseInt(maxPoolSizeParam, 10)
       : undefined;
     const applicationName = params.get("application name");
-    const applicationIntent = params.get("application intent") as
-      | "ReadWrite"
-      | "ReadOnly"
-      | undefined;
-    const accessToken = params.get("token"); // Azure AD access token
+    const applicationIntentValue = params
+      .get("application intent")
+      ?.toLowerCase();
+    const applicationIntent =
+      applicationIntentValue === "readonly"
+        ? "ReadOnly"
+        : applicationIntentValue === "readwrite"
+          ? "ReadWrite"
+          : undefined;
     const serverSPN = params.get("serverspn") ?? params.get("server spn");
 
     // Parse authentication method
@@ -310,10 +377,8 @@ export class MssqlExtensionService extends vscode.Disposable {
           );
       }
     } else if (
-      integratedSecurity === "true" ||
-      integratedSecurity === "True" ||
-      trustedConnection === "true" ||
-      trustedConnection === "True"
+      this.isEnabled(integratedSecurity) ||
+      this.isEnabled(trustedConnection)
     ) {
       // Check for Windows authentication indicators
       authentication = "Integrated Security";
@@ -335,11 +400,10 @@ export class MssqlExtensionService extends vscode.Disposable {
       name: profileName,
       provider: DatabaseProvider.SqlServer,
       host,
-      port: isNaN(port) ? 1433 : port,
+      port,
       database,
       username,
       password,
-      connectionString,
       connectTimeout,
       commandTimeout,
       encrypt,
@@ -350,8 +414,15 @@ export class MssqlExtensionService extends vscode.Disposable {
       authentication,
       applicationName,
       applicationIntent,
-      accessToken,
       serverSPN,
     };
+  }
+
+  private parseBoolean(value: string | undefined): boolean {
+    return value !== undefined && /^(true|yes|sspi|1)$/i.test(value);
+  }
+
+  private isEnabled(value: string | undefined): boolean {
+    return this.parseBoolean(value);
   }
 }
