@@ -70,7 +70,9 @@ public class ConnectionManager : IConnectionManager, IDisposable
             }
         }
 
-        var connectionString = BuildConnectionString(parameters);
+        var connectionString = string.IsNullOrWhiteSpace(parameters.ConnectionString)
+            ? BuildConnectionString(parameters)
+            : parameters.ConnectionString;
         var connection = new SqlConnection(connectionString);
 
         if (parameters.Authentication == AuthenticationMethods.ActiveDirectoryInteractive && 

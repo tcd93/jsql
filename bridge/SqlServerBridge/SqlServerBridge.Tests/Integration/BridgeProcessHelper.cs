@@ -28,17 +28,17 @@ public class BridgeProcessHelper : IDisposable
             var projectRoot = Path.GetDirectoryName(testProjectDir);
             if (projectRoot != null)
             {
-                possiblePaths.Add(Path.Combine(projectRoot, "bin", "Debug", "net8.0", "SqlServerBridge.exe"));
-                possiblePaths.Add(Path.Combine(projectRoot, "bin", "Debug", "net8.0", "SqlServerBridge.dll"));
+                possiblePaths.Add(Path.Combine(projectRoot, "bin", "Debug", "net10.0", "SqlServerBridge.exe"));
+                possiblePaths.Add(Path.Combine(projectRoot, "bin", "Debug", "net10.0", "SqlServerBridge.dll"));
             }
         }
 
-        possiblePaths.Add(Path.Combine(currentDir, "bin", "Debug", "net8.0", "SqlServerBridge.exe"));
-        possiblePaths.Add(Path.Combine(currentDir, "bin", "Debug", "net8.0", "SqlServerBridge.dll"));
-        possiblePaths.Add(Path.Combine(currentDir, "..", "bin", "Debug", "net8.0", "SqlServerBridge.exe"));
-        possiblePaths.Add(Path.Combine(currentDir, "..", "bin", "Debug", "net8.0", "SqlServerBridge.dll"));
-        possiblePaths.Add(Path.Combine(baseDir, "..", "..", "..", "bin", "Debug", "net8.0", "SqlServerBridge.exe"));
-        possiblePaths.Add(Path.Combine(baseDir, "..", "..", "..", "bin", "Debug", "net8.0", "SqlServerBridge.dll"));
+        possiblePaths.Add(Path.Combine(currentDir, "bin", "Debug", "net10.0", "SqlServerBridge.exe"));
+        possiblePaths.Add(Path.Combine(currentDir, "bin", "Debug", "net10.0", "SqlServerBridge.dll"));
+        possiblePaths.Add(Path.Combine(currentDir, "..", "bin", "Debug", "net10.0", "SqlServerBridge.exe"));
+        possiblePaths.Add(Path.Combine(currentDir, "..", "bin", "Debug", "net10.0", "SqlServerBridge.dll"));
+        possiblePaths.Add(Path.Combine(baseDir, "..", "..", "..", "bin", "Debug", "net10.0", "SqlServerBridge.exe"));
+        possiblePaths.Add(Path.Combine(baseDir, "..", "..", "..", "bin", "Debug", "net10.0", "SqlServerBridge.dll"));
 
         string? exePath = null;
         foreach (var path in possiblePaths)

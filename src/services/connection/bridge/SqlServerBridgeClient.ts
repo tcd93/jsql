@@ -68,7 +68,7 @@ export class SqlServerBridgeClient extends EventEmitter {
     );
     const runtimeId = this.getRuntimeId(platform, arch);
 
-    const targetFrameworks = ["net10.0", "net9.0"];
+    const targetFrameworks = ["net10.0"];
 
     // Search order: .NET 10 > .NET 9, Release > Debug, runtime-specific > framework-dependent, exe > dll
     const searchPaths: string[] = [];

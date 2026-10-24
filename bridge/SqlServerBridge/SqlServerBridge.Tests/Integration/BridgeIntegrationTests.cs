@@ -102,8 +102,7 @@ public class BridgeIntegrationTests : IClassFixture<LocalDbFixture>, IDisposable
             Params = new CreateConnectionParams
             {
                 ConnectionName = connectionName,
-                // Use Connect Timeout=3 to make invalid connections fail faster (default is 180s)
-                ConnectionString = "Server=InvalidServer;Database=InvalidDb;User Id=InvalidUser;Password=InvalidPass;Connect Timeout=3;"
+                ConnectionString = "Server=localhost;InvalidKeyword=x;"
             }
         };
 
@@ -182,11 +181,10 @@ public class BridgeIntegrationTests : IClassFixture<LocalDbFixture>, IDisposable
 
         Assert.True(messages.Count >= 1);
 
-        var payloadMessage = messages.FirstOrDefault(m => m.Payload != null);
+        var payloadMessage = messages.FirstOrDefault(m => m.Payload is ExecuteQueryPayload);
         Assert.NotNull(payloadMessage);
 
-        var payloadJson = JsonSerializer.Serialize(payloadMessage.Payload, MessageWriter.JsonOptions);
-        var payload = JsonSerializer.Deserialize<ExecuteQueryPayload>(payloadJson, MessageWriter.JsonOptions);
+        var payload = Assert.IsType<ExecuteQueryPayload>(payloadMessage.Payload);
 
         Assert.NotNull(payload);
         Assert.Null(payload.Error);
@@ -415,9 +413,8 @@ public class BridgeIntegrationTests : IClassFixture<LocalDbFixture>, IDisposable
             MessageWriter.JsonOptions);
         Assert.True(payload1!.Success);
 
-        var payload2 = JsonSerializer.Deserialize<ExecuteQueryPayload>(
-            JsonSerializer.Serialize(messages2.First(m => m.Payload != null).Payload, MessageWriter.JsonOptions),
-            MessageWriter.JsonOptions);
+        var payload2 = Assert.IsType<ExecuteQueryPayload>(
+            messages2.First(m => m.Payload is ExecuteQueryPayload).Payload);
         Assert.Null(payload2!.Error);
     }
 
@@ -426,4 +423,3 @@ public class BridgeIntegrationTests : IClassFixture<LocalDbFixture>, IDisposable
         _bridge?.Dispose();
     }
 }
-
