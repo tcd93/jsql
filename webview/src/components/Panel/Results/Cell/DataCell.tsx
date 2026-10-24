@@ -9,12 +9,12 @@ import styles from "./DataCell.module.css";
 
 const DataCellFunc = ({
   cell,
-  rowIndex,
   comparisonResult,
+  comparisonSide,
 }: {
   cell: Cell<unknown[], unknown>;
-  rowIndex?: number;
   comparisonResult?: ComparisonResult | null;
+  comparisonSide: "base" | "comparison";
 }): JSX.Element => {
   const { column } = cell;
 
@@ -45,16 +45,71 @@ const DataCellFunc = ({
   );
   const selectRectangle = useSmartDrillStore((state) => state.selectRectangle);
 
-  // Check if this cell should be highlighted as different
-  // Note: The display column index includes the row number column at index 0,
-  // but the comparison data uses data array indices (without row number column).
-  // So we need to subtract 1 to get the correct data index.
-  const displayColumnIndex = cell.column.getIndex();
-  const dataColumnIndex = displayColumnIndex - 1; // Account for row number column at index 0
+  const dataColumnIndex = cell.column.columnDef.meta?.["dataIndex"];
+  const originalRowIndex = cell.row.index;
   const isDifferent =
-    comparisonResult && rowIndex !== undefined && dataColumnIndex >= 0
-      ? comparisonResult.differences.has(`${rowIndex},${dataColumnIndex}`)
+    comparisonResult && typeof dataColumnIndex === "number"
+      ? (comparisonSide === "base"
+          ? comparisonResult.baseDifferences
+          : comparisonResult.differences
+        ).has(`${originalRowIndex},${dataColumnIndex}`)
       : false;
+  const differenceKey =
+    typeof dataColumnIndex === "number"
+      ? `${originalRowIndex},${dataColumnIndex}`
+      : "";
+  const differenceDetail =
+    comparisonSide === "base"
+      ? comparisonResult?.baseDifferenceDetails.get(differenceKey)
+      : comparisonResult?.comparisonDifferenceDetails.get(differenceKey);
+  const isAmbiguousKey =
+    comparisonSide === "base"
+      ? (comparisonResult?.ambiguousBaseRows.has(originalRowIndex) ?? false)
+      : (comparisonResult?.ambiguousComparisonRows.has(originalRowIndex) ??
+        false);
+  const isDuplicateKey =
+    comparisonSide === "base"
+      ? (comparisonResult?.duplicateBaseRows.has(originalRowIndex) ?? false)
+      : (comparisonResult?.duplicateComparisonRows.has(originalRowIndex) ??
+        false);
+  const isUnmatched =
+    comparisonSide === "base"
+      ? (comparisonResult?.unmatchedBaseRowIndexes.has(originalRowIndex) ??
+        false)
+      : (comparisonResult?.unmatchedComparisonRows.has(originalRowIndex) ??
+        false);
+  const isUnmatchableKey =
+    comparisonSide === "base"
+      ? (comparisonResult?.unmatchableBaseRows.has(originalRowIndex) ?? false)
+      : (comparisonResult?.unmatchableComparisonRows.has(originalRowIndex) ??
+        false);
+  const rowKey =
+    comparisonSide === "base"
+      ? comparisonResult?.baseRowKeys.get(originalRowIndex)
+      : comparisonResult?.comparisonRowKeys.get(originalRowIndex);
+  const comparisonTitle = isUnmatchableKey
+    ? `This row has a NULL or missing comparison key (${rowKey ?? "key unavailable"}); it cannot be classified as added or removed`
+    : isAmbiguousKey
+      ? isDuplicateKey
+        ? `This row has a duplicate key (${rowKey ?? "key unavailable"}); its matching row is ambiguous`
+        : `This row's key is duplicated in the other result (${rowKey ?? "key unavailable"}); its matching row is ambiguous`
+      : isUnmatched
+        ? `${comparisonSide === "base" ? "Removed" : "Added"} row (${rowKey ?? "key unavailable"}); no row with this key exists in the ${
+            comparisonSide === "base" ? "comparison" : "base"
+          } result`
+        : differenceDetail
+          ? `Compared values for ${differenceDetail.columnName}:\nBase: ${
+              differenceDetail.baseValue === null ||
+              differenceDetail.baseValue === undefined
+                ? "NULL"
+                : String(differenceDetail.baseValue)
+            }\nComparison: ${
+              differenceDetail.comparisonValue === null ||
+              differenceDetail.comparisonValue === undefined
+                ? "NULL"
+                : String(differenceDetail.comparisonValue)
+            }`
+          : (cell.getValue()?.toString() ?? "");
 
   const handleCellClick = useCallback(
     (event: React.MouseEvent) => {
@@ -136,10 +191,16 @@ const DataCellFunc = ({
           isSelected ? styles.selectedCell : ""
         } ${isAnchor ? styles.anchorCell : ""} ${
           isDifferent ? styles.differentCell : ""
+        } ${isAmbiguousKey ? styles.ambiguousKeyCell : ""} ${
+          isUnmatched && comparisonSide === "base"
+            ? styles.removedCell
+            : isUnmatched
+              ? styles.addedCell
+              : ""
         } ${isPinned ? styles.pinned : ""} ${
           isGrouped ? styles.groupedCell : ""
         }`}
-        title={cell.getValue()?.toString() ?? ""}
+        title={comparisonTitle}
         style={{
           width: `calc(var(--col-${column.id}-size) * 1px)`,
           ...offset,
@@ -176,11 +237,12 @@ const DataCellFunc = ({
 };
 
 const DataCell = React.memo(DataCellFunc, (prevProps, nextProps) => {
-  // Only re-render if the cell value has changed
-  const prevValue = prevProps.cell.getValue();
-  const nextValue = nextProps.cell.getValue();
-
-  return prevValue === nextValue;
+  return (
+    prevProps.cell.id === nextProps.cell.id &&
+    prevProps.cell.getValue() === nextProps.cell.getValue() &&
+    prevProps.comparisonResult === nextProps.comparisonResult &&
+    prevProps.comparisonSide === nextProps.comparisonSide
+  );
 });
 
 export default DataCell;

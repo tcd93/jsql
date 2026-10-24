@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { FaExchangeAlt, FaCheck, FaTimes, FaEye } from "react-icons/fa";
 import { useTabStore } from "../../../../store/tabStore";
 import { mapColumns, compareTabData } from "../../../../utils/comparisonUtils";
@@ -8,90 +8,172 @@ interface ComparisonControlsProps {
   currentTabId: string;
 }
 
+const keyNamePriority = (name: string): number => {
+  const normalizedName = name.trim().toLowerCase();
+  const knownNames = ["_id", "id", "_key", "key", "pk"];
+  const knownNameIndex = knownNames.indexOf(normalizedName);
+  if (knownNameIndex !== -1) {
+    return knownNameIndex;
+  }
+  if (normalizedName.endsWith("_id")) {
+    return knownNames.length;
+  }
+  if (normalizedName.endsWith("_key")) {
+    return knownNames.length + 1;
+  }
+  return Number.MAX_SAFE_INTEGER;
+};
+
 const ComparisonControls: React.FC<ComparisonControlsProps> = ({
   currentTabId,
 }) => {
   const [showTooltip, setShowTooltip] = useState(false);
+  const [showKeyPicker, setShowKeyPicker] = useState(false);
+  const [selectedKeyColumns, setSelectedKeyColumns] = useState<string[]>([]);
   const tabsLength = useTabStore((state) => state.tabs.length);
   const selectedBaseTabId = useTabStore((state) => state.selectedBaseTabId);
   const selectedComparisonTabId = useTabStore(
-    (state) => state.selectedComparisonTabId
+    (state) => state.selectedComparisonTabId,
   );
-  const getTab = useTabStore((state) => state.getTab);
+  const selectedComparisonKeyColumns = useTabStore(
+    (state) => state.selectedComparisonKeyColumns,
+  );
+  const baseTab = useTabStore((state) =>
+    selectedBaseTabId
+      ? state.tabs.find((tab) => tab.id === selectedBaseTabId)
+      : undefined,
+  );
+  const currentTab = useTabStore((state) =>
+    state.tabs.find((tab) => tab.id === currentTabId),
+  );
   const setBaseTab = useTabStore((state) => state.setBaseTab);
   const compareWithSelectedTab = useTabStore(
-    (state) => state.compareWithSelectedTab
+    (state) => state.compareWithSelectedTab,
   );
   const clearComparison = useTabStore((state) => state.clearComparison);
 
   const hasEnoughTabs = tabsLength >= 2;
-
   const isCurrentTabBase = selectedBaseTabId === currentTabId;
   const hasBaseTabSelected = selectedBaseTabId !== null;
   const isInComparisonMode =
-    selectedBaseTabId &&
-    selectedComparisonTabId &&
+    selectedBaseTabId !== null &&
+    selectedComparisonTabId !== null &&
     currentTabId === selectedComparisonTabId;
 
-  // Calculate comparison stats when in comparison mode
+  const commonColumns = useMemo(() => {
+    if (!baseTab || !currentTab) {
+      return [];
+    }
+
+    return mapColumns(baseTab.schema, currentTab.schema).sort(
+      (left, right) =>
+        keyNamePriority(left.columnName) - keyNamePriority(right.columnName) ||
+        left.columnName.localeCompare(right.columnName),
+    );
+  }, [baseTab, currentTab]);
+
+  const suggestedKey = commonColumns.find(
+    (column) => keyNamePriority(column.columnName) < Number.MAX_SAFE_INTEGER,
+  )?.columnName;
+
+  useEffect(() => {
+    if (!showKeyPicker) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === "Escape") {
+        setShowKeyPicker(false);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return (): void => document.removeEventListener("keydown", handleKeyDown);
+  }, [showKeyPicker]);
+
   const comparisonStats = useMemo(() => {
-    if (!isInComparisonMode || !selectedBaseTabId || !selectedComparisonTabId) {
+    if (
+      !isInComparisonMode ||
+      !selectedBaseTabId ||
+      !selectedComparisonTabId ||
+      !baseTab
+    ) {
       return null;
     }
 
-    const baseTab = getTab(selectedBaseTabId);
-    const comparisonTab = getTab(selectedComparisonTabId);
-
-    if (!baseTab || !comparisonTab) {
+    const comparisonTab = currentTab;
+    if (comparisonTab?.id !== selectedComparisonTabId) {
       return null;
     }
 
-    // Use existing comparison utilities to calculate stats
     const columnMappings = mapColumns(baseTab.schema, comparisonTab.schema);
-    const comparisonResult = compareTabData(
+    const result = compareTabData(
       baseTab.data,
       comparisonTab.data,
-      columnMappings
+      columnMappings,
+      selectedComparisonKeyColumns,
+    );
+    const matchedColumnNames = columnMappings.map(
+      (mapping) => mapping.columnName,
+    );
+    const matchedNames = new Set(
+      matchedColumnNames.map((name) => name.toLowerCase()),
     );
 
-    // Determine which columns are matched and which are missing
-    const matchedColumns = columnMappings.map((m) => m.columnName);
-    const baseOnlyColumns = baseTab.schema
-      .filter((col) => !matchedColumns.includes(col.name))
-      .map((col) => col.name);
-    const comparisonOnlyColumns = comparisonTab.schema
-      .filter((col) => !matchedColumns.includes(col.name))
-      .map((col) => col.name);
-
     return {
-      totalDifferences: comparisonResult.differences.size,
+      totalDifferences: result.differences.size,
       matchingColumns: columnMappings.length,
       baseTabTitle: baseTab.title,
       comparisonTabTitle: comparisonTab.title,
-      matchedColumnNames: matchedColumns,
-      baseOnlyColumns,
-      comparisonOnlyColumns,
-      totalRows: Math.max(baseTab.data.length, comparisonTab.data.length),
+      matchedColumnNames,
+      baseOnlyColumns: baseTab.schema
+        .filter((column) => !matchedNames.has(column.name.toLowerCase()))
+        .map((column) => column.name),
+      comparisonOnlyColumns: comparisonTab.schema
+        .filter((column) => !matchedNames.has(column.name.toLowerCase()))
+        .map((column) => column.name),
+      duplicateBaseRows: result.duplicateBaseRows.size,
+      duplicateComparisonRows: result.duplicateComparisonRows.size,
+      ambiguousBaseRows: result.ambiguousBaseRows.size,
+      ambiguousComparisonRows: result.ambiguousComparisonRows.size,
+      unmatchableBaseRows: result.unmatchableBaseRows.size,
+      unmatchableComparisonRows: result.unmatchableComparisonRows.size,
+      addedRows: result.unmatchedComparisonRows.size,
+      removedRows: result.unmatchedBaseRows,
+      matchedRows: result.matchedRows,
+      isUpdating: baseTab.isLoading || comparisonTab.isLoading,
     };
-  }, [isInComparisonMode, selectedBaseTabId, selectedComparisonTabId, getTab]);
+  }, [
+    isInComparisonMode,
+    selectedBaseTabId,
+    selectedComparisonTabId,
+    selectedComparisonKeyColumns,
+    baseTab,
+    currentTab,
+  ]);
 
   const handleButtonClick = (): void => {
     if (!hasEnoughTabs) {
       return;
     }
     if (isCurrentTabBase) {
-      // If current tab is base, clear the comparison
       clearComparison();
     } else if (hasBaseTabSelected) {
-      // If another tab is base, compare current tab with it
-      compareWithSelectedTab(currentTabId);
+      setSelectedKeyColumns(suggestedKey ? [suggestedKey] : []);
+      setShowKeyPicker(true);
     } else {
-      // No base tab selected, set current tab as base
       setBaseTab(currentTabId);
     }
   };
 
-  // Determine button appearance based on state
+  const handleCompare = (): void => {
+    if (selectedKeyColumns.length === 0) {
+      return;
+    }
+    compareWithSelectedTab(currentTabId, selectedKeyColumns);
+    setShowKeyPicker(false);
+  };
+
   const getButtonConfig = (): {
     icon: React.ComponentType<{ className?: string }>;
     className: string;
@@ -110,61 +192,103 @@ const ComparisonControls: React.FC<ComparisonControlsProps> = ({
         className: styles.clearButton,
         title: "Clear comparison (currently set as base tab)",
       };
-    } else if (hasBaseTabSelected) {
+    }
+    if (hasBaseTabSelected) {
       return {
         icon: FaExchangeAlt,
         className: styles.compareButton,
-        title: "Compare with base tab",
-      };
-    } else {
-      return {
-        icon: FaCheck,
-        className: styles.setBaseButton,
-        title: "Set as base tab for comparison",
+        title: "Choose key columns and compare with the base tab",
       };
     }
+    return {
+      icon: FaCheck,
+      className: styles.setBaseButton,
+      title: "Set as base tab for comparison",
+    };
   };
 
   const buttonConfig = getButtonConfig();
   const IconComponent = buttonConfig.icon;
 
-  // If we're in comparison mode and have stats, show the tooltip instead of button
   if (isInComparisonMode && comparisonStats) {
     return (
       <button
         className={styles.comparisonInfoIcon}
         onMouseEnter={() => setShowTooltip(true)}
         onMouseLeave={() => setShowTooltip(false)}
+        onFocus={() => setShowTooltip(true)}
+        onBlur={() => setShowTooltip(false)}
         onClick={() => clearComparison()}
-        disabled={!hasEnoughTabs}
-        title="Hover for comparison details • Click to clear comparison"
+        aria-label="Comparison details. Click to clear comparison."
+        title="Hover or focus for comparison details • Click to clear comparison"
       >
         <FaEye className={styles.infoIcon} />
         {showTooltip && (
-          <div className={styles.comparisonTooltip}>
+          <div className={styles.comparisonTooltip} role="tooltip">
             <div className={styles.tooltipHeader}>
               Comparison: {comparisonStats.comparisonTabTitle} vs{" "}
               {comparisonStats.baseTabTitle}
             </div>
+            {comparisonStats.isUpdating && (
+              <div className={styles.updatingNotice}>
+                Results are still streaming; comparison updates live.
+              </div>
+            )}
             <div className={styles.tooltipStats}>
               <div className={styles.statRow}>
-                <strong>{comparisonStats.totalDifferences}</strong> differences
-                in <strong>{comparisonStats.totalRows}</strong> rows
+                <strong>{comparisonStats.totalDifferences}</strong> differing
+                cells across <strong>{comparisonStats.matchedRows}</strong>{" "}
+                matched rows
               </div>
               <div className={styles.statRow}>
-                <strong>{comparisonStats.matchingColumns}</strong> columns
-                compared
+                <strong>{comparisonStats.addedRows}</strong> added and{" "}
+                <strong>{comparisonStats.removedRows}</strong> removed rows
+              </div>
+              <div className={styles.statRow}>
+                Duplicate key rows: base{" "}
+                <strong>{comparisonStats.duplicateBaseRows}</strong>, comparison{" "}
+                <strong>{comparisonStats.duplicateComparisonRows}</strong>
+              </div>
+              <div className={styles.statRow}>
+                Rows with NULL or missing keys, excluded from added/removed: base{" "}
+                <strong>{comparisonStats.unmatchableBaseRows}</strong>,
+                comparison{" "}
+                <strong>{comparisonStats.unmatchableComparisonRows}</strong>
+              </div>
+              <div className={styles.statRow}>
+                <strong>{comparisonStats.matchingColumns}</strong> shared
+                columns compared
               </div>
             </div>
 
-            {comparisonStats.matchedColumnNames.length > 0 && (
-              <div className={styles.tooltipSection}>
-                <div className={styles.sectionTitle}>Matched columns:</div>
-                <div className={styles.columnList}>
-                  {comparisonStats.matchedColumnNames.join(", ")}
-                </div>
+            <div className={styles.tooltipSection}>
+              <div className={styles.sectionTitle}>Highlight colors:</div>
+              <div className={styles.colorLegend}>
+                <span className={styles.legendItem}>
+                  <span className={`${styles.legendSwatch} ${styles.addedSwatch}`} />
+                  Added row
+                </span>
+                <span className={styles.legendItem}>
+                  <span className={`${styles.legendSwatch} ${styles.removedSwatch}`} />
+                  Removed row
+                </span>
+                <span className={styles.legendItem}>
+                  <span className={`${styles.legendSwatch} ${styles.differentSwatch}`} />
+                  Changed value
+                </span>
+                <span className={styles.legendItem}>
+                  <span className={`${styles.legendSwatch} ${styles.ambiguousSwatch}`} />
+                  Duplicate or unusable key
+                </span>
               </div>
-            )}
+            </div>
+
+            <div className={styles.tooltipSection}>
+              <div className={styles.sectionTitle}>Matching key:</div>
+              <div className={styles.columnList}>
+                {selectedComparisonKeyColumns.join(", ")}
+              </div>
+            </div>
 
             {comparisonStats.baseOnlyColumns.length > 0 && (
               <div className={styles.tooltipSection}>
@@ -189,7 +313,6 @@ const ComparisonControls: React.FC<ComparisonControlsProps> = ({
     );
   }
 
-  // Otherwise show the comparison control button
   return (
     <div className={styles.comparisonControls}>
       <button
@@ -197,9 +320,74 @@ const ComparisonControls: React.FC<ComparisonControlsProps> = ({
         onClick={handleButtonClick}
         disabled={!hasEnoughTabs}
         title={buttonConfig.title}
+        aria-label={buttonConfig.title}
       >
         <IconComponent className={styles.icon} />
       </button>
+      {showKeyPicker && (
+        <div
+          className={styles.keyPicker}
+          role="dialog"
+          aria-label="Choose comparison key columns"
+        >
+          <div className={styles.keyPickerTitle}>Match rows by</div>
+          <p className={styles.keyPickerDescription}>
+            Select one or more shared columns.
+          </p>
+          {commonColumns.length > 0 ? (
+            <div className={styles.keyOptions}>
+              {commonColumns.map((column, index) => (
+                <label
+                  className={styles.keyOption}
+                  key={`${column.baseIndex}-${column.comparisonIndex}`}
+                  htmlFor={`comparison-key-${currentTabId}-${index}`}
+                >
+                  <input
+                    id={`comparison-key-${currentTabId}-${index}`}
+                    type="checkbox"
+                    checked={selectedKeyColumns.includes(column.columnName)}
+                    onChange={(event) => {
+                      setSelectedKeyColumns((selected) =>
+                        event.target.checked
+                          ? [...selected, column.columnName]
+                          : selected.filter(
+                              (name) => name !== column.columnName,
+                            ),
+                      );
+                    }}
+                  />
+                  <span>{column.columnName}</span>
+                  {column.columnName === suggestedKey && (
+                    <span className={styles.suggestedLabel}>Suggested</span>
+                  )}
+                </label>
+              ))}
+            </div>
+          ) : (
+            <p className={styles.noKeysMessage}>
+              No unambiguous shared columns are available to match these
+              results.
+            </p>
+          )}
+          <div className={styles.keyPickerActions}>
+            <button
+              type="button"
+              className={styles.cancelButton}
+              onClick={() => setShowKeyPicker(false)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className={styles.confirmButton}
+              onClick={handleCompare}
+              disabled={selectedKeyColumns.length === 0}
+            >
+              Compare
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

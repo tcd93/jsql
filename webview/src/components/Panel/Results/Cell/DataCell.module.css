@@ -14,12 +14,36 @@
 }
 
 .differentCell {
-  background-color: rgba(210, 20, 20, 0.3) !important;
-  border: 1px solid rgba(210, 20, 20, 0.2);
+  background-color: rgba(245, 190, 0, 0.3) !important;
+  border: 1px solid rgba(245, 190, 0, 0.35);
 }
 
 .differentCell:hover {
-  background-color: rgba(230, 0, 0, 0.4) !important;
+  background-color: rgba(245, 190, 0, 0.42) !important;
+}
+
+.virtualCell.addedCell:hover {
+  background-color: rgba(0, 160, 90, 0.34) !important;
+}
+
+.virtualCell.removedCell:hover {
+  background-color: rgba(210, 20, 20, 0.4) !important;
+}
+
+.virtualCell.ambiguousKeyCell:hover {
+  background-color: rgba(230, 130, 0, 0.4) !important;
+}
+
+.ambiguousKeyCell {
+  background-color: rgba(230, 130, 0, 0.28) !important;
+}
+
+.addedCell {
+  background-color: rgba(0, 160, 90, 0.22) !important;
+}
+
+.removedCell {
+  background-color: rgba(210, 20, 20, 0.28) !important;
 }
 
 .groupedCell {

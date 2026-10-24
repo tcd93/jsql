@@ -59,7 +59,19 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ searchText, tabId }) => {
   const selectedComparisonTabId = useTabStore(
     (state) => state.selectedComparisonTabId,
   );
-  const getTab = useTabStore((state) => state.getTab);
+  const selectedComparisonKeyColumns = useTabStore(
+    (state) => state.selectedComparisonKeyColumns,
+  );
+  const baseTab = useTabStore((state) =>
+    selectedBaseTabId
+      ? state.tabs.find((tab) => tab.id === selectedBaseTabId)
+      : undefined,
+  );
+  const comparisonTab = useTabStore((state) =>
+    selectedComparisonTabId
+      ? state.tabs.find((tab) => tab.id === selectedComparisonTabId)
+      : undefined,
+  );
   const groupedColumns =
     useTabStore(
       useShallow((state) =>
@@ -91,21 +103,30 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ searchText, tabId }) => {
     if (
       !selectedBaseTabId ||
       !selectedComparisonTabId ||
-      tabId !== selectedComparisonTabId
+      (tabId !== selectedBaseTabId && tabId !== selectedComparisonTabId)
     ) {
       return null;
     }
 
-    const baseTab = getTab(selectedBaseTabId);
-    const currentTab = getTab(tabId);
-
-    if (!baseTab || !currentTab || !baseTab.schema || !currentTab.schema) {
+    if (!baseTab || !comparisonTab) {
       return null;
     }
 
-    const columnMappings = mapColumns(baseTab.schema, currentTab.schema);
-    return compareTabData(baseTab.data, currentTab.data, columnMappings);
-  }, [selectedBaseTabId, selectedComparisonTabId, tabId, getTab]);
+    const columnMappings = mapColumns(baseTab.schema, comparisonTab.schema);
+    return compareTabData(
+      baseTab.data,
+      comparisonTab.data,
+      columnMappings,
+      selectedComparisonKeyColumns,
+    );
+  }, [
+    selectedBaseTabId,
+    selectedComparisonTabId,
+    selectedComparisonKeyColumns,
+    tabId,
+    baseTab,
+    comparisonTab,
+  ]);
 
   const columns = useMemo<ColumnDef<unknown[]>[]>(() => {
     if (!schema || schema.length === 0) {
@@ -137,7 +158,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ searchText, tabId }) => {
         accessorFn: (row: unknown[]): unknown => row[index],
         aggregationFn: field.aggregationFn ?? "auto",
         header: field.name,
-        meta: { type: field.type },
+        meta: { type: field.type, dataIndex: index },
         size: estimateColumnWidth(field.name, sampleValues, field.type),
         minSize: 60,
         maxSize: 800,
@@ -267,6 +288,8 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ searchText, tabId }) => {
 
   const itemContent = useCallback(
     (rowIndex: number, row: Row<unknown[]>) => {
+      const comparisonSide =
+        tabId === selectedBaseTabId ? "base" : "comparison";
       return (
         <>
           {row.getVisibleCells().map((cell: Cell<unknown[], unknown>) => {
@@ -281,14 +304,14 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ searchText, tabId }) => {
                 key={cell.id}
                 cell={cell}
                 comparisonResult={comparisonResult}
-                rowIndex={rowIndex}
+                comparisonSide={comparisonSide}
               />
             );
           })}
         </>
       );
     },
-    [comparisonResult],
+    [comparisonResult, selectedBaseTabId, tabId],
   );
 
   return (

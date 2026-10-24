@@ -14,7 +14,10 @@ interface StreamStats {
 }
 
 export class GroupedColumn {
-  constructor(public id: string, public header: string) {}
+  constructor(
+    public id: string,
+    public header: string,
+  ) {}
 
   public toJson(): string {
     return JSON.stringify({
@@ -60,6 +63,7 @@ interface TabState {
   activeTabId: string | null;
   selectedBaseTabId: string | null;
   selectedComparisonTabId: string | null;
+  selectedComparisonKeyColumns: string[];
   addTab: (query: string, queryId: string, tabId: string) => void;
   getTab: (id: string) => TabData | undefined;
   getTabsByQueryId: (queryId: string) => TabData[];
@@ -67,7 +71,7 @@ interface TabState {
   setActiveTab: (id: string) => void;
   updateTab: (
     id: string,
-    args: Omit<Partial<TabData>, "id" | "queryId" | "data">
+    args: Omit<Partial<TabData>, "id" | "queryId" | "data">,
   ) => void;
   appendData: (id: string, data: unknown[][]) => void;
   closeOtherTabs: (id: string) => void;
@@ -77,14 +81,55 @@ interface TabState {
   getActiveTab: () => TabData | null;
   setBaseTab: (id: string) => void;
   clearComparison: () => void;
-  compareWithSelectedTab: (id: string) => void;
+  compareWithSelectedTab: (id: string, keyColumnNames: string[]) => void;
 }
+
+const comparisonStateAfterTabChanges = (
+  state: Pick<
+    TabState,
+    | "selectedBaseTabId"
+    | "selectedComparisonTabId"
+    | "selectedComparisonKeyColumns"
+  >,
+  tabs: TabData[],
+): Partial<
+  Pick<
+    TabState,
+    | "selectedBaseTabId"
+    | "selectedComparisonTabId"
+    | "selectedComparisonKeyColumns"
+  >
+> => {
+  if (
+    state.selectedBaseTabId &&
+    !tabs.some((tab) => tab.id === state.selectedBaseTabId)
+  ) {
+    return {
+      selectedBaseTabId: null,
+      selectedComparisonTabId: null,
+      selectedComparisonKeyColumns: [],
+    };
+  }
+
+  if (
+    state.selectedComparisonTabId &&
+    !tabs.some((tab) => tab.id === state.selectedComparisonTabId)
+  ) {
+    return {
+      selectedComparisonTabId: null,
+      selectedComparisonKeyColumns: [],
+    };
+  }
+
+  return {};
+};
 
 export const useTabStore = create<TabState>((set, get) => ({
   tabs: [],
   activeTabId: null,
   selectedBaseTabId: null,
   selectedComparisonTabId: null,
+  selectedComparisonKeyColumns: [],
   comparisonMode: false,
 
   addTab: (query: string, queryId: string, tabId: string): void => {
@@ -148,6 +193,7 @@ export const useTabStore = create<TabState>((set, get) => ({
       return {
         tabs: newTabs,
         activeTabId: newActiveTabId,
+        ...comparisonStateAfterTabChanges(state, newTabs),
       };
     });
   },
@@ -161,7 +207,7 @@ export const useTabStore = create<TabState>((set, get) => ({
   updateTab: (id, args): void => {
     set((state) => ({
       tabs: state.tabs.map((tab) =>
-        tab.id === id ? { ...tab, ...args } : tab
+        tab.id === id ? { ...tab, ...args } : tab,
       ),
     }));
   },
@@ -198,6 +244,7 @@ export const useTabStore = create<TabState>((set, get) => ({
       return {
         tabs: [tabToKeep],
         activeTabId: id,
+        ...comparisonStateAfterTabChanges(state, [tabToKeep]),
       };
     });
     // clear smart drill store
@@ -221,6 +268,7 @@ export const useTabStore = create<TabState>((set, get) => ({
       return {
         tabs: newTabs,
         activeTabId: newActiveTabId,
+        ...comparisonStateAfterTabChanges(state, newTabs),
       };
     });
     // clear smart drill store
@@ -244,6 +292,7 @@ export const useTabStore = create<TabState>((set, get) => ({
       return {
         tabs: newTabs,
         activeTabId: newActiveTabId,
+        ...comparisonStateAfterTabChanges(state, newTabs),
       };
     });
     // clear smart drill store
@@ -257,6 +306,9 @@ export const useTabStore = create<TabState>((set, get) => ({
     set({
       tabs: [],
       activeTabId: null,
+      selectedBaseTabId: null,
+      selectedComparisonTabId: null,
+      selectedComparisonKeyColumns: [],
     });
   },
 
@@ -269,6 +321,7 @@ export const useTabStore = create<TabState>((set, get) => ({
     set({
       selectedBaseTabId: id,
       selectedComparisonTabId: null,
+      selectedComparisonKeyColumns: [],
     });
   },
 
@@ -276,14 +329,16 @@ export const useTabStore = create<TabState>((set, get) => ({
     set({
       selectedBaseTabId: null,
       selectedComparisonTabId: null,
+      selectedComparisonKeyColumns: [],
     });
   },
 
-  compareWithSelectedTab: (id: string): void => {
+  compareWithSelectedTab: (id: string, keyColumnNames: string[]): void => {
     const { selectedBaseTabId } = get();
     if (selectedBaseTabId && selectedBaseTabId !== id) {
       set({
         selectedComparisonTabId: id,
+        selectedComparisonKeyColumns: keyColumnNames,
         activeTabId: id,
       });
     }
