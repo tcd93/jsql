@@ -2,6 +2,15 @@
 .vscode/**
 .vscode-test/**
 out/test/**
+bridge/SqlServerBridge/SqlServerBridge.Tests/**
+**/*.cs
+**/*.csproj
+**/bin/Debug/**
+**/obj/**
+*.vsix
+package-lock.json
+webview/package-lock.json
+jsql.sln
 src/**
 webview/src/**
 webview/node_modules/**
@@ -41,10 +50,14 @@ Thumbs.db
 **/temp/**
 **/*-temp/**
 
+# Include bridge runtime files, but not debug symbols
+!bridge/SqlServerBridge/bin/Release/**/*.dll
+!bridge/SqlServerBridge/bin/Release/**/*.json
+!bridge/SqlServerBridge/bin/Release/**/*.exe
+!bridge/SqlServerBridge/bin/Release/**/SqlServerBridge
+
 # Exclude source maps
 **/*.js.map
 **/*.mjs.map
 **/*.css.map
-
-# Include bridge executables and dependencies (don't ignore them)
-!bridge/SqlServerBridge/bin/Release/**
+**/*.pdb
