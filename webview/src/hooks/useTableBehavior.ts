@@ -139,6 +139,15 @@ export const useTableBehavior = (
       if (
         ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)
       ) {
+        if (
+          event.target instanceof Element &&
+          event.target.closest(
+            "button, [role='button'], input, select, textarea, [contenteditable='true']"
+          )
+        ) {
+          return;
+        }
+
         event.preventDefault();
 
         let direction: "up" | "down" | "left" | "right";

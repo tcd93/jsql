@@ -317,6 +317,13 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ searchText, tabId }) => {
           />
         </>
       )}
+      {schema &&
+        schema.length > 0 &&
+        stats?.complete &&
+        searchText.trim() &&
+        filteredRows.length === 0 && (
+          <div className={styles.emptyState}>No rows match your search.</div>
+        )}
       {(!schema || schema.length === 0) && stats?.complete && (
         <div className={styles.emptyState}>
           <p>

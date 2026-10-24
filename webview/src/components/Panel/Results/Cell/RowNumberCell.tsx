@@ -47,14 +47,22 @@ const RowNumberCellFunc = ({
           onClick={(e) => e.stopPropagation()}
           onKeyDown={(e) => {
             if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
-              e.preventDefault(); // Prevent scrolling
+              e.preventDefault();
+              e.stopPropagation();
               table.setColumnSizing((currentSizes) => {
-                const currentColSize = currentSizes[column.id] || 0;
+                const currentColSize =
+                  currentSizes[column.id] ?? column.getSize();
+                const minSize = column.columnDef.minSize ?? 20;
+                const maxSize =
+                  column.columnDef.maxSize ?? Number.MAX_SAFE_INTEGER;
                 const newSizes = { ...currentSizes };
-                newSizes[column.id] =
-                  e.key === "ArrowLeft"
-                    ? Math.max(currentColSize - 5, 5)
-                    : currentColSize + 5;
+                newSizes[column.id] = Math.min(
+                  maxSize,
+                  Math.max(
+                    minSize,
+                    currentColSize + (e.key === "ArrowLeft" ? -5 : 5),
+                  ),
+                );
                 return newSizes;
               });
             }

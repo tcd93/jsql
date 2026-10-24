@@ -25,7 +25,7 @@ export const GroupDropZone: React.FC<GroupDropZoneProps> = ({
   const [isActive, setIsActive] = useState(false);
 
   const groupedColumns = useTabStore(
-    (state) => state.getTab(tabId)?.groupedColumns
+    (state) => state.getTab(tabId)?.groupedColumns,
   );
   const updateTab = useTabStore((state) => state.updateTab);
 
@@ -66,7 +66,7 @@ export const GroupDropZone: React.FC<GroupDropZoneProps> = ({
 
   const handleRemove = (header: GroupedColumn): void => {
     const newGroupedColumns = groupedColumns?.filter(
-      (col) => col.id !== header.id
+      (col) => col.id !== header.id,
     );
     updateTab(tabId, { groupedColumns: newGroupedColumns });
   };
@@ -93,7 +93,7 @@ export const GroupDropZone: React.FC<GroupDropZoneProps> = ({
               <button
                 className={styles.removeButton}
                 onClick={() => handleRemove(column)}
-                aria-label={`Remove grouping by ${column}`}
+                aria-label={`Remove grouping by ${column.header}`}
                 title="Remove group"
               >
                 <svg

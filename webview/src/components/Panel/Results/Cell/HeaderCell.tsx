@@ -269,16 +269,26 @@ const HeaderCellFunc = ({
                 onDoubleClick={header.column.resetSize}
                 onKeyDown={(e) => {
                   if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+                    e.preventDefault();
+                    e.stopPropagation();
                     header
                       .getContext()
                       .table.setColumnSizing((currentSizes) => {
                         const currentColSize =
-                          currentSizes[header.column.id] || 0;
+                          currentSizes[header.column.id] ??
+                          header.column.getSize();
+                        const minSize = header.column.columnDef.minSize ?? 20;
+                        const maxSize =
+                          header.column.columnDef.maxSize ??
+                          Number.MAX_SAFE_INTEGER;
                         const newSizes = { ...currentSizes };
-                        newSizes[header.column.id] =
-                          e.key === "ArrowLeft"
-                            ? Math.max(currentColSize - 5, 5)
-                            : currentColSize + 5;
+                        newSizes[header.column.id] = Math.min(
+                          maxSize,
+                          Math.max(
+                            minSize,
+                            currentColSize + (e.key === "ArrowLeft" ? -5 : 5),
+                          ),
+                        );
                         return newSizes;
                       });
                   }
