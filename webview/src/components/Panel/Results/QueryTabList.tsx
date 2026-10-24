@@ -120,10 +120,9 @@ const QueryTabList: React.FC = () => {
         <TabList className={styles.tabList}>
           {Array.from({ length: tabLength }).map((_, index) => {
             const tab = useTabStore.getState().tabs[index];
-            const key = `${tab.id}tab-${index}`;
             return (
               <Tab
-                key={key}
+                key={tab.id}
                 className={styles.tab}
                 onContextMenu={(e) => handleContextMenu(e, tab.id, index)}
                 tabIndex="0"
@@ -156,10 +155,9 @@ const QueryTabList: React.FC = () => {
 
         {Array.from({ length: tabLength }).map((_, index) => {
           const tabId = useTabStore.getState().tabs[index]?.id;
-          const key = `${tabId}panel-${index}`;
           return (
             <TabPanel
-              key={key}
+              key={`${tabId}-panel`}
               className={`${
                 tabId === activeTabId
                   ? styles.activeTabPanel
