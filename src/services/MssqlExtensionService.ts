@@ -1,52 +1,31 @@
 import * as vscode from "vscode";
-import {
-  DatabaseProvider,
-  SqlServerConnectionProfile,
-} from "../types";
+import { DatabaseProvider, SqlServerConnectionProfile } from "../types";
 import { OutputService } from "./OutputService";
 import { getService } from ".";
 
-// works with MSSQL extension API (1.36)
+// Uses the public MSSQL shared-connections API (version 1).
+
+interface MssqlSharedConnectionsApi {
+  authenticationProviderId: string;
+  getActiveEditorConnectionId(accessToken: string): Promise<string | undefined>;
+  getConnectionString(
+    accessToken: string,
+    connectionId: string,
+  ): Promise<string | undefined>;
+  onDidChangeActiveEditorConnection: vscode.Event<void>;
+}
 
 interface MssqlExtensionApi {
-  /**
-   * Get the connection string for the provided connection Uri or ConnectionDetails.
-   * https://github.com/microsoft/vscode-mssql/blob/main/extensions/mssql/src/controllers/connectionManager.ts
-   * @param connectionUriOrDetails Either the connection Uri for the connection or the connection details for the connection is required.
-   * @param includePassword (optional) if password should be included in connection string; default is false
-   * @param includeApplicationName (optional) if application name should be included in connection string; default is true
-   * @returns connection string for the connection
-   */
-  getConnectionString(
-    uriString: string | Record<string, string> | undefined,
-    includePassword: boolean,
-    includeApplicationName: boolean
-  ): Promise<string>;
+  getSharedConnectionsApi(version: 1): MssqlSharedConnectionsApi;
+}
 
-  /**
-   * Prompt the user to select or create a connection profile (of MSSQL extension - not this current extension).
-   * https://github.com/microsoft/vscode-mssql/blob/main/src/extension.ts
-   * https://github.com/microsoft/vscode-mssql/blob/86d0f270d7e82a54a46e9b43994ad963a990bc7c/src/views/connectionUI.ts#L74C18-L74C27
-   * @param ignoreFocusOut (optional) if true, the prompt will not close when focus is lost
-   * @returns The selected or created record is [IConnectionInfo](https://github.com/microsoft/vscode-mssql/blob/main/typings/vscode-mssql.d.ts#L215)
-   */
-  promptForConnection(
-    ignoreFocusOut?: boolean
-  ): Promise<Record<string, string> | undefined>;
-
-  /**
-   * https://github.com/microsoft/vscode-mssql/blob/main/src/extension.ts
-   * @param connectionInfo [IConnectionInfo](https://github.com/microsoft/vscode-mssql/blob/main/typings/vscode-mssql.d.ts#L215)
-   * @param saveConnection
-   */
-  connect(
-    connectionInfo: Record<string, string>,
-    saveConnection?: boolean
-  ): Promise<string>;
+interface MssqlConnectionSession {
+  api: MssqlSharedConnectionsApi;
+  accessToken: string;
 }
 
 export class MssqlExtensionService extends vscode.Disposable {
-  private readonly mssqlApi: Promise<MssqlExtensionApi | undefined>;
+  private readonly mssqlApi: Promise<MssqlSharedConnectionsApi | undefined>;
   private readonly outputService: OutputService;
 
   constructor() {
@@ -55,28 +34,29 @@ export class MssqlExtensionService extends vscode.Disposable {
     this.mssqlApi = this.initialize();
   }
 
-  private async initialize(): Promise<MssqlExtensionApi | undefined> {
+  private async initialize(): Promise<MssqlSharedConnectionsApi | undefined> {
     try {
       const mssqlExtension =
         vscode.extensions.getExtension<MssqlExtensionApi>("ms-mssql.mssql");
 
       if (mssqlExtension) {
-        if (!mssqlExtension.isActive) {
-          await mssqlExtension.activate();
-        }
+        const extensionApi = mssqlExtension.isActive
+          ? mssqlExtension.exports
+          : await mssqlExtension.activate();
+        const sharedConnectionsApi = extensionApi.getSharedConnectionsApi(1);
         this.outputService.writeToOutput("MSSQL extension is active.", "INFO");
-        return mssqlExtension.exports;
+        return sharedConnectionsApi;
       } else {
         this.outputService.writeToOutput(
           "MSSQL extension is not installed.",
-          "INFO"
+          "INFO",
         );
         return undefined;
       }
     } catch (error) {
       this.outputService.writeToOutput(
         `MSSQL extension not found or failed to initialize: ${error}`,
-        "INFO"
+        "INFO",
       );
       return undefined;
     }
@@ -92,13 +72,11 @@ export class MssqlExtensionService extends vscode.Disposable {
     if (!(await this.isExtensionAvailable())) {
       return undefined;
     }
-    // get connection string from extension API, not from ConnectionSharing service
-    // so no need to get connectionId or ask for permission
     return this.getCurrentConnection();
   }
 
   /**
-   * Show MSSQL extension connection profile picker popup
+   * Use the MSSQL connection picker and return the selected active-editor profile.
    * @returns Selected connection profile or undefined if none selected or MSSQL extension not available
    */
   public async showConnectionPopup(): Promise<
@@ -111,40 +89,65 @@ export class MssqlExtensionService extends vscode.Disposable {
     if (!api) {
       this.outputService.writeToOutput(
         "MSSQL extension API not available",
-        "INFO"
+        "INFO",
       );
       return undefined;
     }
-    const connectionInfo = await api.promptForConnection(false);
-    if (!connectionInfo) {
-      return;
+
+    const editor = vscode.window.activeTextEditor;
+    if (editor?.document.languageId !== "sql") {
+      this.outputService.writeToOutput(
+        "Open a SQL editor to choose an MSSQL connection.",
+        "INFO",
+      );
+      return undefined;
     }
 
-    let uri: string | undefined;
+    let session: MssqlConnectionSession | undefined;
     try {
-      uri = await api.connect(connectionInfo, false);
-
-      if (!uri) {
-        console.warn("No connection uri returned from MSSQL API");
-        return undefined;
-      }
-
-      const connectionString = await api.getConnectionString(
-        uri,
-        true, // includePassword
-        true
+      session = await this.getConnectionSession(api, true);
+    } catch (error) {
+      this.outputService.writeToOutput(
+        `Error accessing MSSQL connection sharing: ${error}`,
+        "ERROR",
       );
-      if (!connectionString) {
+      return undefined;
+    }
+    if (!session) {
+      return undefined;
+    }
+
+    let connectionChanged: vscode.Disposable | undefined;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    const connectionChange = new Promise<boolean>((resolve) => {
+      connectionChanged = api.onDidChangeActiveEditorConnection(() =>
+        resolve(true),
+      );
+      timeout = setTimeout(() => resolve(false), 120_000);
+    });
+
+    try {
+      await vscode.commands.executeCommand("mssql.connect");
+      if (!(await connectionChange)) {
+        this.outputService.writeToOutput(
+          "No MSSQL connection was selected.",
+          "INFO",
+        );
         return undefined;
       }
 
-      return this.parse(connectionString);
+      return await this.readCurrentConnection(session);
     } catch (error) {
       this.outputService.writeToOutput(
         `Error obtaining connection from MSSQL extension: ${error}`,
-        "ERROR"
+        "ERROR",
       );
       return undefined;
+    } finally {
+      connectionChanged?.dispose();
+      if (timeout) {
+        clearTimeout(timeout);
+      }
     }
   }
 
@@ -154,36 +157,64 @@ export class MssqlExtensionService extends vscode.Disposable {
   private async getCurrentConnection(): Promise<
     SqlServerConnectionProfile | undefined
   > {
-    const api = await this.mssqlApi;
-    if (!api) {
-      console.warn("MSSQL extension API not available");
-      return undefined;
-    }
-
     try {
-      const connectionString = await api.getConnectionString(
-        vscode.window.activeTextEditor?.document.uri.toString(false),
-        true, // includePassword
-        true
+      const session = await this.getConnectionSession();
+      return session ? await this.readCurrentConnection(session) : undefined;
+    } catch (error) {
+      this.outputService.writeToOutput(
+        `Error getting active connection from MSSQL extension: ${error}`,
+        "ERROR",
       );
-
-      if (!connectionString) {
-        console.warn("No connection string returned from MSSQL API");
-        return undefined;
-      }
-
-      // console.debug("[MSSQL connection string]");
-      // console.debug(connectionString);
-      // console.debug("[/MSSQL connection string]");
-
-      return this.parse(connectionString);
-    } catch {
-      // this.outputService.writeToOutput(
-      //   `Error getting connection string from MSSQL API: ${error}`,
-      //   "ERROR"
-      // );
       return undefined;
     }
+  }
+
+  private async readCurrentConnection(
+    session: MssqlConnectionSession,
+  ): Promise<SqlServerConnectionProfile | undefined> {
+    const connectionId = await session.api.getActiveEditorConnectionId(
+      session.accessToken,
+    );
+    if (!connectionId) {
+      return undefined;
+    }
+
+    // Sample
+    // Data Source=jsql-extension-test.database.windows.net;Initial Catalog=jsql;
+    // Pooling=False;Connect Timeout=30;Encrypt=True;Trust Server Certificate=True;
+    // Application Name=vscode-mssql;Application Intent=ReadWrite;Command Timeout=30
+    const connectionString = await session.api.getConnectionString(
+      session.accessToken,
+      connectionId,
+    );
+    if (!connectionString) {
+      this.outputService.writeToOutput(
+        "MSSQL did not return a connection string for the active connection.",
+        "WARNING",
+      );
+      return undefined;
+    }
+
+    return this.parse(connectionString);
+  }
+
+  private async getConnectionSession(
+    api?: MssqlSharedConnectionsApi,
+    promptForConsent = false,
+  ): Promise<MssqlConnectionSession | undefined> {
+    const sharedConnectionsApi = api ?? (await this.mssqlApi);
+    if (!sharedConnectionsApi) {
+      return undefined;
+    }
+
+    const session = await vscode.authentication.getSession(
+      sharedConnectionsApi.authenticationProviderId,
+      [],
+      promptForConsent ? { createIfNone: true } : { silent: true },
+    );
+    return session
+      ? { api: sharedConnectionsApi, accessToken: session.accessToken }
+      : undefined;
   }
 
   private splitConnectionString(connectionString: string): Map<string, string> {
@@ -258,7 +289,9 @@ export class MssqlExtensionService extends vscode.Disposable {
     const integratedSecurity = params.get("integrated security");
     const trustedConnection = params.get("trusted connection");
 
-    let authentication: SqlServerConnectionProfile["authentication"] | undefined;
+    let authentication:
+      | SqlServerConnectionProfile["authentication"]
+      | undefined;
 
     // https://learn.microsoft.com/en-us/sql/connect/jdbc/connecting-using-azure-active-directory-authentication?view=sql-server-ver17
     if (authenticationParam) {
@@ -273,7 +306,7 @@ export class MssqlExtensionService extends vscode.Disposable {
           break;
         default:
           throw new Error(
-            `Unsupported authentication method: ${authenticationParam}`
+            `Unsupported authentication method: ${authenticationParam}`,
           );
       }
     } else if (
