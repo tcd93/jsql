@@ -14,6 +14,8 @@ import {
   detectSqlContextAction,
   findQueryAtCursor,
   flattenSchema,
+  quoteSqlServerColumnCompletion,
+  quoteSqlServerQualifiedIdentifier,
   SQLNamespace,
 } from "@src/utils";
 import { vscodeDark } from "@uiw/codemirror-theme-vscode";
@@ -186,16 +188,20 @@ function onApply(
   // `from` is the `from` return value of `createSqlAutocompleteSource`, which should be the start of cursor's pointed at word
   // `to` is the cursor position
   const remainingText = view.state.sliceDoc(to).match(/^[^\s;,]+/)?.[0]; // remaining text after cursor (until next ";" or space, or end of line)
+  const insert =
+    completion.type === "table" || completion.type === "view"
+      ? quoteSqlServerQualifiedIdentifier(completion.label)
+      : quoteSqlServerColumnCompletion(completion.label);
 
   view.dispatch({
     changes: {
       from,
       to: to + (remainingText?.length ?? 0),
-      insert: completion.label,
+      insert,
     },
     selection: {
-      anchor: from + completion.label.length,
-      head: from + completion.label.length,
+      anchor: from + insert.length,
+      head: from + insert.length,
     },
   });
 }
@@ -226,6 +232,7 @@ function createSqlAutocompleteSource(
         label: t.fqName ?? t.name,
         type: t.type,
         detail: t.detail,
+        boost: 100,
         apply: onApply,
       }));
       return {
@@ -249,6 +256,7 @@ function createSqlAutocompleteSource(
             label: t.alias ? `${t.alias}.${c.label}` : c.label,
             type: c.type,
             detail: c.detail,
+            boost: 100,
             apply: onApply,
           })) ?? []
       );

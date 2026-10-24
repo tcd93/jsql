@@ -5,6 +5,8 @@ import {
   flattenSchema,
   TableInfo,
   detectSqlContextAction,
+  quoteSqlServerColumnCompletion,
+  quoteSqlServerQualifiedIdentifier,
 } from "../utils";
 
 export class SqlCompletionProvider implements vscode.CompletionItemProvider {
@@ -101,6 +103,8 @@ export class SqlCompletionProvider implements vscode.CompletionItemProvider {
       );
 
       item.label = table.fqName ?? table.name;
+      item.insertText = quoteSqlServerQualifiedIdentifier(item.label);
+      item.sortText = `0000${item.label}`;
       item.detail = table.detail;
       item.documentation = `${table.type}: ${table.fqName ?? table.name}`;
 
@@ -140,6 +144,8 @@ export class SqlCompletionProvider implements vscode.CompletionItemProvider {
           );
 
           item.label = label;
+          item.insertText = quoteSqlServerColumnCompletion(label);
+          item.sortText = `0000${label}`;
           item.detail = column.detail;
           item.documentation = `${column.label}${
             column.type ? ` (${column.type})` : ""

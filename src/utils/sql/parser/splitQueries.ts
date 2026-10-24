@@ -42,7 +42,7 @@ function isSkippableKeyword(
   text: string,
   position: number,
   context: SqlParsingContext,
-  parenDepth: number
+  parenDepth: number,
 ): boolean {
   if (parenDepth !== 0) {
     return false;
@@ -78,7 +78,7 @@ function updateParsingContext(
   text: string,
   position: number,
   char: string,
-  parenDepth: number
+  parenDepth: number,
 ): void {
   if (matchesKeyword(text, position, "CASE")) {
     context.caseDepth++;
@@ -107,7 +107,7 @@ function updateParsingContext(
   if (matchesKeyword(text, position, "WITH")) {
     const followingText = text.substring(
       position + 4,
-      Math.min(text.length, position + 10)
+      Math.min(text.length, position + 10),
     );
     if (parenDepth === 0 && !/^\s*\(/.test(followingText)) {
       context.inCteDefinition = true;
@@ -148,7 +148,7 @@ function finalizeQuery(
   currentQuery: string,
   startPosition: number,
   endPosition: number,
-  commentPositions: Set<number>
+  commentPositions: Set<number>,
 ): QueryPosition | null {
   const trimmedQuery = currentQuery.trim();
 
@@ -214,6 +214,7 @@ function computeStringAndCommentBoundaries(text: string): {
 
   let inString = false;
   let stringChar = "";
+  let inBracketIdentifier = false;
   let inComment = false;
   let inlineComment = false;
 
@@ -221,7 +222,13 @@ function computeStringAndCommentBoundaries(text: string): {
     const char = text[j];
     const nextChar = text[j + 1];
 
-    if (!inString && !inComment && char === "-" && nextChar === "-") {
+    if (
+      !inString &&
+      !inBracketIdentifier &&
+      !inComment &&
+      char === "-" &&
+      nextChar === "-"
+    ) {
       inlineComment = true;
       j++;
       continue;
@@ -232,7 +239,13 @@ function computeStringAndCommentBoundaries(text: string): {
       continue;
     }
 
-    if (!inString && !inlineComment && char === "/" && nextChar === "*") {
+    if (
+      !inString &&
+      !inBracketIdentifier &&
+      !inlineComment &&
+      char === "/" &&
+      nextChar === "*"
+    ) {
       inComment = true;
       j++;
       continue;
@@ -251,9 +264,28 @@ function computeStringAndCommentBoundaries(text: string): {
       continue;
     }
 
-    if (!inString && (char === "'" || char === '"')) {
+    if (!inString && !inBracketIdentifier && (char === "'" || char === '"')) {
       inString = true;
       stringChar = char;
+      continue;
+    }
+
+    if (!inString && !inBracketIdentifier && char === "[") {
+      inBracketIdentifier = true;
+      stringPositions.add(j);
+      continue;
+    }
+
+    if (inBracketIdentifier) {
+      stringPositions.add(j);
+      if (char === "]") {
+        if (nextChar === "]") {
+          stringPositions.add(j + 1);
+          j++;
+        } else {
+          inBracketIdentifier = false;
+        }
+      }
       continue;
     }
 
@@ -342,7 +374,7 @@ export function splitSqlQueries(text: string): QueryPosition[] {
         text,
         currPos,
         context,
-        parenDepth
+        parenDepth,
       );
 
       // Check for statement boundary keyword
@@ -351,7 +383,7 @@ export function splitSqlQueries(text: string): QueryPosition[] {
           text,
           currPos,
           context,
-          parenDepth
+          parenDepth,
         );
       }
     }
@@ -368,7 +400,7 @@ export function splitSqlQueries(text: string): QueryPosition[] {
         queryText,
         startPos,
         currPos,
-        commentPositions
+        commentPositions,
       );
 
       if (query) {
@@ -436,13 +468,7 @@ export function splitSqlQueries(text: string): QueryPosition[] {
 
     // Track context for MERGE statements and other keywords (only outside strings/comments)
     if (!inString && !inComment) {
-      updateParsingContext(
-        context,
-        text,
-        currPos,
-        char,
-        parenDepth
-      );
+      updateParsingContext(context, text, currPos, char, parenDepth);
     }
 
     workingText.push(char);

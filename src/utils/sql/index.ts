@@ -16,6 +16,11 @@ export type {
 export { TRACKED_KEYWORDS as STATEMENT_KEYWORDS } from "./constants";
 
 export { isOnlyComments, generateQueryTitle } from "./helpers";
+export {
+  quoteSqlServerIdentifier,
+  quoteSqlServerQualifiedIdentifier,
+  quoteSqlServerColumnCompletion,
+} from "./identifiers";
 
 export { splitSqlQueries } from "./parser/splitQueries";
 export { findQueryAtCursor, findQueryRangeAtCursor } from "./parser/queryFinder";
