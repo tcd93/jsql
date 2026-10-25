@@ -1,5 +1,6 @@
 import React from "react";
 import { useMenuContext } from "../../../hooks/useMenuContext";
+import { useGlobalContextMenuStore } from "../../../store/globalContextMenuStore";
 import { useTabStore } from "../../../store/tabStore";
 import styles from "./TabContextMenu.module.css";
 
@@ -23,11 +24,31 @@ export const TabContextMenu: React.FC<TabContextMenuProps> = ({
   const closeAllTabs = useTabStore((state) => state.closeAllTabs);
   const closeTabsToLeft = useTabStore((state) => state.closeTabsToLeft);
   const closeTabsToRight = useTabStore((state) => state.closeTabsToRight);
+  const getTab = useTabStore((state) => state.getTab);
+  const closeContextMenu = useGlobalContextMenuStore(
+    (state) => state.closeContextMenu
+  );
 
   const { menuRef } = useMenuContext();
 
   const canCloseToLeft = tabIndex > 0;
   const canCloseToRight = tabIndex < totalTabs - 1;
+
+  const handleCopyQuery = async (): Promise<void> => {
+    const tab = getTab(tabId);
+    if (!tab) {
+      closeContextMenu();
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(tab.query);
+    } catch (error) {
+      console.error("Failed to copy query text:", error);
+    } finally {
+      closeContextMenu();
+    }
+  };
 
   return (
     // eslint-disable-next-line jsx-a11y/click-events-have-key-events
@@ -39,6 +60,14 @@ export const TabContextMenu: React.FC<TabContextMenuProps> = ({
       tabIndex={0}
       ref={menuRef}
     >
+      <button
+        className={styles.menuItem}
+        role="menuitem"
+        onClick={handleCopyQuery}
+      >
+        Copy query text
+      </button>
+      <div className={styles.separator} />
       <button
         className={styles.menuItem}
         role="menuitem"
