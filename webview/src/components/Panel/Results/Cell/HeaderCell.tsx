@@ -193,8 +193,6 @@ const HeaderCellFunc = ({
         }}
         onDoubleClick={handleHeaderDoubleClick}
         onContextMenu={handleContextMenu}
-        draggable={isDraggable}
-        onDragStart={isDraggable ? handleDragStart : undefined}
         onDragOver={isDraggable ? handleDragOver : undefined}
         onDragLeave={isDraggable ? handleDragLeave : undefined}
         onDrop={isDraggable ? handleDrop : undefined}
@@ -207,7 +205,11 @@ const HeaderCellFunc = ({
           }`}
         >
           {header.isPlaceholder ? null : (
-            <span className={styles.headerContent}>
+            <span
+              className={styles.headerContent}
+              draggable={isDraggable}
+              onDragStart={isDraggable ? handleDragStart : undefined}
+            >
               {flexRender(header.column.columnDef.header, header.getContext())}
             </span>
           )}
