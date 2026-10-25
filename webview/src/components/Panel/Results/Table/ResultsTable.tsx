@@ -22,6 +22,7 @@ import { useBatchedData } from "../../../../hooks/useBatchedData";
 import { useColumnAggregation } from "../../../../hooks/useColumnAggregation";
 import { useTableBehavior } from "../../../../hooks/useTableBehavior";
 import { useFooterStore } from "../../../../store/footerStore";
+import { getTabResultRows } from "../../../../store/tabResultDataStore";
 import { useTabStore } from "../../../../store/tabStore";
 import { estimateColumnWidth } from "../../../../utils/columnWidthUtils";
 import {
@@ -114,8 +115,8 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ searchText, tabId }) => {
 
     const columnMappings = mapColumns(baseTab.schema, comparisonTab.schema);
     return compareTabData(
-      baseTab.data,
-      comparisonTab.data,
+      getTabResultRows(baseTab.id),
+      getTabResultRows(comparisonTab.id),
       columnMappings,
       selectedComparisonKeyColumns,
     );

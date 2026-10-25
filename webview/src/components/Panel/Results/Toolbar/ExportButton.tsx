@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { FaDownload, FaChevronDown } from "react-icons/fa";
 import { useMessageHandlerStore } from "../../../../events/messageHandlerStore";
 import { useGlobalContextMenuStore } from "../../../../store/globalContextMenuStore";
+import { getTabResultRows } from "../../../../store/tabResultDataStore";
 import { useTabStore } from "../../../../store/tabStore";
 import { exportTableData } from "../../../../utils/exportUtils";
 import styles from "./ExportButton.module.css";
@@ -84,8 +85,8 @@ const ExportButton: React.FC<ExportButtonProps> = ({ currentTabId }) => {
     if (!tabSchema || isExporting) {
       return;
     }
-    const tabData = useTabStore.getState().getTab(currentTabId)?.data;
-    if (!tabData) {
+    const tabData = getTabResultRows(currentTabId);
+    if (tabData.length === 0) {
       return;
     }
 

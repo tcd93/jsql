@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { FaTable, FaChartBar } from "react-icons/fa";
 import { useMenuContext } from "../../../../hooks/useMenuContext";
+import { getTabResultRows } from "../../../../store/tabResultDataStore";
 import { useTabStore } from "../../../../store/tabStore";
 import { exportTableData, ExportFormat } from "../../../../utils/exportUtils";
 import styles from "./ExportDropdownMenu.module.css";
@@ -56,7 +57,8 @@ export const ExportDropdownMenu: React.FC<ExportDropdownMenuProps> = ({
   const [markdownRowCount, setMarkdownRowCount] = useState<number>(10);
 
   const currentTab = getTab(tabId);
-  const hasData = currentTab?.data && currentTab.data.length > 0;
+  const currentTabData = getTabResultRows(tabId);
+  const hasData = currentTabData.length > 0;
 
   const handleExport = async (format: ExportFormat): Promise<void> => {
     if (!currentTab || !hasData) {
@@ -64,7 +66,7 @@ export const ExportDropdownMenu: React.FC<ExportDropdownMenuProps> = ({
     }
 
     try {
-      await exportTableData(currentTab.data, currentTab.schema, {
+      await exportTableData(currentTabData, currentTab.schema, {
         format,
         includeHeaders: true,
         ...(format === "markdown" && {

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { FaExchangeAlt, FaCheck, FaTimes, FaEye } from "react-icons/fa";
+import { getTabResultRows } from "../../../../store/tabResultDataStore";
 import { useTabStore } from "../../../../store/tabStore";
 import { mapColumns, compareTabData } from "../../../../utils/comparisonUtils";
 import styles from "./ComparisonControls.module.css";
@@ -108,8 +109,8 @@ const ComparisonControls: React.FC<ComparisonControlsProps> = ({
 
     const columnMappings = mapColumns(baseTab.schema, comparisonTab.schema);
     const result = compareTabData(
-      baseTab.data,
-      comparisonTab.data,
+      getTabResultRows(baseTab.id),
+      getTabResultRows(comparisonTab.id),
       columnMappings,
       selectedComparisonKeyColumns,
     );

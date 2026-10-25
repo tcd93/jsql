@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
-import { filter, scan, bufferTime } from "rxjs/operators";
-import { useTabStore } from "../store/tabStore";
+import { bufferTime, defer, filter, scan, startWith } from "rxjs";
+import { getTabResultData } from "../store/tabResultDataStore";
 
 interface BatchConfig {
   batchSize: number;
@@ -28,35 +28,38 @@ const DEFAULT_CONFIG: BatchConfig = {
  */
 export const useBatchedData = (
   tabId: string,
-  config: Partial<BatchConfig> = {}
+  config: Partial<BatchConfig> = {},
 ): unknown[][] => {
-  const [renderedData, setRenderedData] = useState<unknown[][]>(
-    () => useTabStore.getState().getTab(tabId)?.data ?? []
-  );
+  const [renderedData, setRenderedData] = useState<unknown[][]>(() => [
+    ...(getTabResultData(tabId)?.getRows() ?? []),
+  ]);
 
   const finalConfig = { ...DEFAULT_CONFIG, ...config };
 
-  const dataStream = useTabStore((state) => state.getTab(tabId)?.dataStream);
+  const resultData = getTabResultData(tabId);
 
   // Create the incremental batched data processing stream
   const batchedData$ = useMemo(() => {
-    return dataStream?.pipe(
-      bufferTime(
-        finalConfig.batchInterval, // Time window (50ms)
-        null, // No buffer creation interval
-        finalConfig.batchSize // Max buffer size (50 items)
-      ),
+    if (!resultData) {
+      return undefined;
+    }
 
-      // Filter out empty buffers
-      filter((batch: unknown[][][]) => batch.length > 0),
-
-      // Flatten the batched newRows arrays and accumulate
-      scan((acc: unknown[][], batch: unknown[][][]) => {
-        const flattenedRows = batch.flat();
-        return [...acc, ...flattenedRows];
-      }, [] as unknown[][])
-    );
-  }, [dataStream, finalConfig.batchInterval, finalConfig.batchSize]);
+    return defer(() => {
+      const initialRows = [...resultData.getRows()];
+      return resultData.dataStream.pipe(
+        bufferTime(finalConfig.batchInterval, null, finalConfig.batchSize),
+        filter((batch: unknown[][][]) => batch.length > 0),
+        scan(
+          (acc: unknown[][], batch: unknown[][][]) => {
+            const flattenedRows = batch.flat();
+            return [...acc, ...flattenedRows];
+          },
+          [...initialRows],
+        ),
+        startWith(initialRows),
+      );
+    });
+  }, [resultData, finalConfig.batchInterval, finalConfig.batchSize]);
 
   // Subscribe to the batched data stream
   useEffect(() => {
@@ -67,7 +70,7 @@ export const useBatchedData = (
     return (): void => {
       subscription?.unsubscribe();
     };
-  }, [batchedData$]);
+  }, [batchedData$, resultData]);
 
   return renderedData;
 };

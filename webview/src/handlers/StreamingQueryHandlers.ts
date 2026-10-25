@@ -5,10 +5,11 @@ import {
   ExecuteStreamingQueryInfoMessage,
   ExecuteStreamingQuerySchemaMessage,
 } from "@src/types";
+import { appendTabResultData } from "../store/tabResultDataStore";
 import { useTabStore } from "../store/tabStore";
 
 export const handleStreamingQuerySchemaMessage = (
-  message: ExecuteStreamingQuerySchemaMessage
+  message: ExecuteStreamingQuerySchemaMessage,
 ): void => {
   const { query, queryId, schema, tabId } = message.payload;
 
@@ -18,7 +19,7 @@ export const handleStreamingQuerySchemaMessage = (
 };
 
 export const handleStreamingQueryDataMessage = (
-  message: ExecuteStreamingQueryDataMessage
+  message: ExecuteStreamingQueryDataMessage,
 ): void => {
   const { data, tabId } = message.payload;
 
@@ -29,7 +30,8 @@ export const handleStreamingQueryDataMessage = (
   }
 
   // Update the tab with new data
-  useTabStore.getState().appendData(tabId, data.rows);
+  appendTabResultData(tabId, data.rows);
+
   useTabStore.getState().updateTab(tabId, {
     streamStats: {
       batches: data.batchNumber,
@@ -40,7 +42,7 @@ export const handleStreamingQueryDataMessage = (
 };
 
 export const handleStreamingQueryCompleteMessage = (
-  message: ExecuteStreamingQueryCompleteMessage
+  message: ExecuteStreamingQueryCompleteMessage,
 ): void => {
   const { query, queryId, summary } = message.payload;
 
@@ -63,7 +65,7 @@ export const handleStreamingQueryCompleteMessage = (
   }
   tabs.forEach((tab) => {
     console.debug(
-      `StreamingQueryHandlers: Query complete for tab ${tab.id}. Total Rows: ${summary.totalRows}, Total Batches: ${summary.totalBatches}`
+      `StreamingQueryHandlers: Query complete for tab ${tab.id}. Total Rows: ${summary.totalRows}, Total Batches: ${summary.totalBatches}`,
     );
 
     // Mark the tab as complete
@@ -80,7 +82,7 @@ export const handleStreamingQueryCompleteMessage = (
 };
 
 export const handleStreamingQueryErrorMessage = (
-  message: ExecuteStreamingQueryErrorMessage
+  message: ExecuteStreamingQueryErrorMessage,
 ): void => {
   const { queryId, query, tabId, error } = message.payload;
 
@@ -97,10 +99,10 @@ export const handleStreamingQueryErrorMessage = (
 };
 
 export const handleStreamingQueryInfoMessage = (
-  message: ExecuteStreamingQueryInfoMessage
+  message: ExecuteStreamingQueryInfoMessage,
 ): void => {
   const { queryId, tabId, info } = message.payload;
   console.info(
-    `StreamingQueryHandlers: Info message for queryId ${queryId} in tabId ${tabId}: ${info}`
+    `StreamingQueryHandlers: Info message for queryId ${queryId} in tabId ${tabId}: ${info}`,
   );
 };

@@ -1,10 +1,13 @@
 import { SchemaField } from "@src/types";
 import { generateQueryTitle } from "@src/utils";
 import { ExpandedState } from "@tanstack/react-table";
-import { Subject } from "rxjs";
 import { create } from "zustand";
 import { useGlobalContextMenuStore } from "./globalContextMenuStore";
 import { useSmartDrillStore } from "./smartDrillStore";
+import {
+  createTabResultData,
+  deleteTabResultData,
+} from "./tabResultDataStore";
 
 interface StreamStats {
   rows: number;
@@ -38,11 +41,6 @@ export interface TabData {
   query: string;
   queryId: string;
   schema: SchemaField[];
-  data: unknown[][];
-  /**
-   * Emits when new data is appended to any tab
-   */
-  dataStream: Subject<unknown[][]>;
   error?: string;
   timestamp: number;
   streamStats?: StreamStats;
@@ -71,9 +69,8 @@ interface TabState {
   setActiveTab: (id: string) => void;
   updateTab: (
     id: string,
-    args: Omit<Partial<TabData>, "id" | "queryId" | "data">,
+    args: Omit<Partial<TabData>, "id" | "queryId">,
   ) => void;
-  appendData: (id: string, data: unknown[][]) => void;
   closeOtherTabs: (id: string) => void;
   closeTabsToRight: (id: string) => void;
   closeTabsToLeft: (id: string) => void;
@@ -143,8 +140,6 @@ export const useTabStore = create<TabState>((set, get) => ({
       title: generateQueryTitle(query),
       query,
       queryId,
-      data: [],
-      dataStream: new Subject<unknown[][]>(),
       schema: [],
       timestamp: Date.now(),
       isLoading: true,
@@ -154,6 +149,8 @@ export const useTabStore = create<TabState>((set, get) => ({
       columnOrder: [],
       expandedState: {},
     };
+
+    createTabResultData(tabId);
 
     set((state) => ({
       tabs: [...state.tabs, newTab],
@@ -165,6 +162,10 @@ export const useTabStore = create<TabState>((set, get) => ({
   },
 
   closeTab: (id: string): void => {
+    if (!get().tabs.some((tab) => tab.id === id)) {
+      return;
+    }
+
     set((state) => {
       const tabIndex = state.tabs.findIndex((tab) => tab.id === id);
       if (tabIndex === -1) {
@@ -196,6 +197,8 @@ export const useTabStore = create<TabState>((set, get) => ({
         ...comparisonStateAfterTabChanges(state, newTabs),
       };
     });
+
+    deleteTabResultData(id);
   },
 
   setActiveTab: (id: string): void => {
@@ -212,20 +215,6 @@ export const useTabStore = create<TabState>((set, get) => ({
     }));
   },
 
-  appendData: (id, data): void => {
-    set((state) => {
-      const tab = state.tabs.find((tab) => tab.id === id);
-      if (!tab) {
-        return state;
-      }
-      tab.data = [...tab.data, ...data];
-
-      tab.dataStream.next(data);
-
-      return { tabs: [...state.tabs] };
-    });
-  },
-
   getTab: (id: string): TabData | undefined => {
     return get().tabs.find((tab) => tab.id === id);
   },
@@ -235,18 +224,22 @@ export const useTabStore = create<TabState>((set, get) => ({
   },
 
   closeOtherTabs: (id: string): void => {
-    set((state) => {
-      const tabToKeep = state.tabs.find((tab) => tab.id === id);
-      if (!tabToKeep) {
-        return state;
-      }
+    const currentTabs = get().tabs;
+    const tabToKeep = currentTabs.find((tab) => tab.id === id);
+    if (!tabToKeep) {
+      return;
+    }
 
+    set((state) => {
       return {
         tabs: [tabToKeep],
         activeTabId: id,
         ...comparisonStateAfterTabChanges(state, [tabToKeep]),
       };
     });
+    currentTabs
+      .filter((tab) => tab.id !== id)
+      .forEach((tab) => deleteTabResultData(tab.id));
     // clear smart drill store
     useSmartDrillStore.getState().clearSelection();
     // close context menu if open
@@ -254,12 +247,13 @@ export const useTabStore = create<TabState>((set, get) => ({
   },
 
   closeTabsToRight: (id: string): void => {
-    set((state) => {
-      const tabIndex = state.tabs.findIndex((tab) => tab.id === id);
-      if (tabIndex === -1) {
-        return state;
-      }
+    const currentTabs = get().tabs;
+    const tabIndex = currentTabs.findIndex((tab) => tab.id === id);
+    if (tabIndex === -1) {
+      return;
+    }
 
+    set((state) => {
       const newTabs = state.tabs.slice(0, tabIndex + 1);
       const newActiveTabId = newTabs.find((tab) => tab.id === state.activeTabId)
         ? state.activeTabId
@@ -271,6 +265,9 @@ export const useTabStore = create<TabState>((set, get) => ({
         ...comparisonStateAfterTabChanges(state, newTabs),
       };
     });
+    currentTabs
+      .slice(tabIndex + 1)
+      .forEach((tab) => deleteTabResultData(tab.id));
     // clear smart drill store
     useSmartDrillStore.getState().clearSelection();
     // close context menu if open
@@ -278,12 +275,13 @@ export const useTabStore = create<TabState>((set, get) => ({
   },
 
   closeTabsToLeft: (id: string): void => {
-    set((state) => {
-      const tabIndex = state.tabs.findIndex((tab) => tab.id === id);
-      if (tabIndex === -1) {
-        return state;
-      }
+    const currentTabs = get().tabs;
+    const tabIndex = currentTabs.findIndex((tab) => tab.id === id);
+    if (tabIndex === -1) {
+      return;
+    }
 
+    set((state) => {
       const newTabs = state.tabs.slice(tabIndex);
       const newActiveTabId = newTabs.find((tab) => tab.id === state.activeTabId)
         ? state.activeTabId
@@ -295,6 +293,9 @@ export const useTabStore = create<TabState>((set, get) => ({
         ...comparisonStateAfterTabChanges(state, newTabs),
       };
     });
+    currentTabs
+      .slice(0, tabIndex)
+      .forEach((tab) => deleteTabResultData(tab.id));
     // clear smart drill store
     useSmartDrillStore.getState().clearSelection();
     // close context menu if open
@@ -303,6 +304,7 @@ export const useTabStore = create<TabState>((set, get) => ({
 
   closeAllTabs: (): void => {
     useGlobalContextMenuStore.getState().closeContextMenu();
+    get().tabs.forEach((tab) => deleteTabResultData(tab.id));
     set({
       tabs: [],
       activeTabId: null,
