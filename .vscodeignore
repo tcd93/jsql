@@ -3,6 +3,7 @@
 .vscode-test/**
 out/test/**
 bridge/SqlServerBridge/SqlServerBridge.Tests/**
+bridge/SqlServerBridge/bin/Debug/**
 **/*.cs
 **/*.csproj
 **/bin/Debug/**

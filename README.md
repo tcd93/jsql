@@ -23,6 +23,7 @@ Auto generate queries based on selected data points to explore related informati
 ## Requirements
 - VS Code 1.99.1 or higher
 - For SQL Server: .NET Runtime 10.0 or higher
+- Azure SQL interactive authentication is provided by the bundled `Microsoft.Data.SqlClient.Extensions.Azure` dependency.
 
 ## Contributing
 
