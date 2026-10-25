@@ -75,9 +75,297 @@ function uniqueColumnIndexes(schema: SchemaField[]): Map<string, number> {
   return indexes;
 }
 
+interface KeyComparisonState {
+  duplicateComparisonRows: Set<number>;
+  duplicateBaseRows: Set<number>;
+  ambiguousComparisonRows: Set<number>;
+  ambiguousBaseRows: Set<number>;
+  unmatchedComparisonRows: Set<number>;
+  unmatchedBaseRows: Set<number>;
+  differences: Set<string>;
+  baseDifferences: Set<string>;
+  comparisonDifferenceDetails: Map<
+    string,
+    { baseValue: unknown; comparisonValue: unknown; columnName: string }
+  >;
+  baseDifferenceDetails: Map<
+    string,
+    { baseValue: unknown; comparisonValue: unknown; columnName: string }
+  >;
+  matchedRows: number;
+}
+
 /**
- * Matches rows by the selected shared key columns, then compares all shared
- * columns for keys that identify exactly one row in each result.
+ * Maintains key indexes and updates comparison output only for keys whose rows
+ * have arrived since the previous update.
+ */
+export class ComparisonAccumulator {
+  readonly result: ComparisonResult;
+  private readonly keyMappings: ColumnMapping[];
+  private readonly baseRowsByKey = new Map<string, number[]>();
+  private readonly comparisonRowsByKey = new Map<string, number[]>();
+  private readonly keyResults = new Map<string, KeyComparisonState>();
+  private indexedBaseRowCount: number;
+  private indexedComparisonRowCount: number;
+
+  constructor(
+    private readonly baseRows: unknown[][],
+    private readonly comparisonRows: unknown[][],
+    columnMappings: ColumnMapping[],
+    keyColumnNames: string[],
+  ) {
+    const keyNames = new Set(keyColumnNames.map((name) => name.toLowerCase()));
+    this.keyMappings = columnMappings.filter((mapping) =>
+      keyNames.has(mapping.columnName.toLowerCase()),
+    );
+    this.result = {
+      columnMappings,
+      differences: new Set(),
+      baseDifferences: new Set(),
+      comparisonDifferenceDetails: new Map(),
+      baseDifferenceDetails: new Map(),
+      comparisonRowKeys: new Map(),
+      baseRowKeys: new Map(),
+      duplicateComparisonRows: new Set(),
+      duplicateBaseRows: new Set(),
+      ambiguousComparisonRows: new Set(),
+      ambiguousBaseRows: new Set(),
+      unmatchableComparisonRows: new Set(),
+      unmatchableBaseRows: new Set(),
+      unmatchedComparisonRows: new Set(),
+      unmatchedBaseRows: 0,
+      unmatchedBaseRowIndexes: new Set(),
+      matchedRows: 0,
+    };
+
+    this.indexedBaseRowCount = this.indexRows(
+      this.baseRows,
+      "base",
+      0,
+    );
+    this.indexedComparisonRowCount = this.indexRows(
+      this.comparisonRows,
+      "comparison",
+      0,
+    );
+    new Set([
+      ...this.baseRowsByKey.keys(),
+      ...this.comparisonRowsByKey.keys(),
+    ]).forEach((key) => this.rebuildKeyResult(key));
+    this.result.unmatchedBaseRows = this.result.unmatchedBaseRowIndexes.size;
+  }
+
+  getSnapshot(): ComparisonResult {
+    return { ...this.result };
+  }
+
+  update(): boolean {
+    const affectedKeys = new Set<string>();
+    const previousRowCount =
+      this.indexedBaseRowCount + this.indexedComparisonRowCount;
+    this.indexedBaseRowCount = this.indexRows(
+      this.baseRows,
+      "base",
+      this.indexedBaseRowCount,
+      affectedKeys,
+    );
+    this.indexedComparisonRowCount = this.indexRows(
+      this.comparisonRows,
+      "comparison",
+      this.indexedComparisonRowCount,
+      affectedKeys,
+    );
+
+    const hasNewRows =
+      previousRowCount !==
+      this.indexedBaseRowCount + this.indexedComparisonRowCount;
+    if (!hasNewRows) {
+      return false;
+    }
+
+    affectedKeys.forEach((key) => this.rebuildKeyResult(key));
+    this.result.unmatchedBaseRows = this.result.unmatchedBaseRowIndexes.size;
+    return true;
+  }
+
+  private indexRows(
+    rows: unknown[][],
+    side: "base" | "comparison",
+    startIndex: number,
+    affectedKeys = new Set<string>(),
+  ): number {
+    const rowKeys =
+      side === "base"
+        ? this.result.baseRowKeys
+        : this.result.comparisonRowKeys;
+    const rowsByKey =
+      side === "base" ? this.baseRowsByKey : this.comparisonRowsByKey;
+
+    for (let rowIndex = startIndex; rowIndex < rows.length; rowIndex++) {
+      const row = rows[rowIndex];
+      const values = this.keyMappings.map((mapping) =>
+        row[mapping[side === "base" ? "baseIndex" : "comparisonIndex"]],
+      );
+      rowKeys.set(
+        rowIndex,
+        this.keyMappings
+          .map((mapping, index) => {
+            const value = values[index];
+            return `${mapping.columnName}=${
+              value === null || value === undefined ? "NULL" : String(value)
+            }`;
+          })
+          .join(", "),
+      );
+
+      if (
+        values.length === 0 ||
+        values.some((value) => value === null || value === undefined)
+      ) {
+        if (side === "base") {
+          this.result.unmatchableBaseRows.add(rowIndex);
+          this.result.ambiguousBaseRows.add(rowIndex);
+        } else {
+          this.result.unmatchableComparisonRows.add(rowIndex);
+          this.result.ambiguousComparisonRows.add(rowIndex);
+        }
+        continue;
+      }
+
+      const key = JSON.stringify(values.map((value) => String(value)));
+      const indexes = rowsByKey.get(key);
+      if (indexes) {
+        indexes.push(rowIndex);
+      } else {
+        rowsByKey.set(key, [rowIndex]);
+      }
+      affectedKeys.add(key);
+    }
+
+    return rows.length;
+  }
+
+  private rebuildKeyResult(key: string): void {
+    const previous = this.keyResults.get(key);
+    if (previous) {
+      this.removeKeyResult(previous);
+    }
+
+    const baseIndexes = this.baseRowsByKey.get(key) ?? [];
+    const comparisonIndexes = this.comparisonRowsByKey.get(key) ?? [];
+    const next: KeyComparisonState = {
+      duplicateComparisonRows: new Set(),
+      duplicateBaseRows: new Set(),
+      ambiguousComparisonRows: new Set(),
+      ambiguousBaseRows: new Set(),
+      unmatchedComparisonRows: new Set(),
+      unmatchedBaseRows: new Set(),
+      differences: new Set(),
+      baseDifferences: new Set(),
+      comparisonDifferenceDetails: new Map(),
+      baseDifferenceDetails: new Map(),
+      matchedRows: 0,
+    };
+
+    if (baseIndexes.length > 1 || comparisonIndexes.length > 1) {
+      if (baseIndexes.length > 1) {
+        baseIndexes.forEach((index) => next.duplicateBaseRows.add(index));
+      }
+      baseIndexes.forEach((index) => next.ambiguousBaseRows.add(index));
+      if (comparisonIndexes.length > 1) {
+        comparisonIndexes.forEach((index) =>
+          next.duplicateComparisonRows.add(index),
+        );
+      }
+      comparisonIndexes.forEach((index) =>
+        next.ambiguousComparisonRows.add(index),
+      );
+    } else if (baseIndexes.length === 0) {
+      comparisonIndexes.forEach((index) =>
+        next.unmatchedComparisonRows.add(index),
+      );
+    } else if (comparisonIndexes.length === 0) {
+      baseIndexes.forEach((index) => next.unmatchedBaseRows.add(index));
+    } else {
+      next.matchedRows = 1;
+      const baseRow = this.baseRows[baseIndexes[0]];
+      const comparisonRow = this.comparisonRows[comparisonIndexes[0]];
+      this.result.columnMappings.forEach((mapping) => {
+        const baseValue = baseRow[mapping.baseIndex];
+        const comparisonValue = comparisonRow[mapping.comparisonIndex];
+        if (!valuesEqual(baseValue, comparisonValue)) {
+          const comparisonCellKey = `${comparisonIndexes[0]},${mapping.comparisonIndex}`;
+          const baseCellKey = `${baseIndexes[0]},${mapping.baseIndex}`;
+          const detail = {
+            baseValue,
+            comparisonValue,
+            columnName: mapping.columnName,
+          };
+          next.differences.add(comparisonCellKey);
+          next.baseDifferences.add(baseCellKey);
+          next.comparisonDifferenceDetails.set(comparisonCellKey, detail);
+          next.baseDifferenceDetails.set(baseCellKey, detail);
+        }
+      });
+    }
+
+    this.addKeyResult(next);
+    this.keyResults.set(key, next);
+  }
+
+  private addKeyResult(state: KeyComparisonState): void {
+    this.mergeSet(this.result.duplicateComparisonRows, state.duplicateComparisonRows);
+    this.mergeSet(this.result.duplicateBaseRows, state.duplicateBaseRows);
+    this.mergeSet(this.result.ambiguousComparisonRows, state.ambiguousComparisonRows);
+    this.mergeSet(this.result.ambiguousBaseRows, state.ambiguousBaseRows);
+    this.mergeSet(this.result.unmatchedComparisonRows, state.unmatchedComparisonRows);
+    this.mergeSet(this.result.unmatchedBaseRowIndexes, state.unmatchedBaseRows);
+    this.mergeSet(this.result.differences, state.differences);
+    this.mergeSet(this.result.baseDifferences, state.baseDifferences);
+    this.mergeMap(
+      this.result.comparisonDifferenceDetails,
+      state.comparisonDifferenceDetails,
+    );
+    this.mergeMap(this.result.baseDifferenceDetails, state.baseDifferenceDetails);
+    this.result.matchedRows += state.matchedRows;
+  }
+
+  private removeKeyResult(state: KeyComparisonState): void {
+    this.removeSet(this.result.duplicateComparisonRows, state.duplicateComparisonRows);
+    this.removeSet(this.result.duplicateBaseRows, state.duplicateBaseRows);
+    this.removeSet(this.result.ambiguousComparisonRows, state.ambiguousComparisonRows);
+    this.removeSet(this.result.ambiguousBaseRows, state.ambiguousBaseRows);
+    this.removeSet(this.result.unmatchedComparisonRows, state.unmatchedComparisonRows);
+    this.removeSet(this.result.unmatchedBaseRowIndexes, state.unmatchedBaseRows);
+    this.removeSet(this.result.differences, state.differences);
+    this.removeSet(this.result.baseDifferences, state.baseDifferences);
+    this.removeMap(
+      this.result.comparisonDifferenceDetails,
+      state.comparisonDifferenceDetails,
+    );
+    this.removeMap(this.result.baseDifferenceDetails, state.baseDifferenceDetails);
+    this.result.matchedRows -= state.matchedRows;
+  }
+
+  private mergeSet<T>(target: Set<T>, source: Set<T>): void {
+    source.forEach((value) => target.add(value));
+  }
+
+  private removeSet<T>(target: Set<T>, source: Set<T>): void {
+    source.forEach((value) => target.delete(value));
+  }
+
+  private mergeMap<K, V>(target: Map<K, V>, source: Map<K, V>): void {
+    source.forEach((value, key) => target.set(key, value));
+  }
+
+  private removeMap<K, V>(target: Map<K, V>, source: Map<K, V>): void {
+    source.forEach((_value, key) => target.delete(key));
+  }
+}
+
+/**
+ * Matches rows by selected shared keys and compares all shared columns.
  */
 export function compareTabData(
   baseData: unknown[][],
@@ -85,188 +373,12 @@ export function compareTabData(
   columnMappings: ColumnMapping[],
   keyColumnNames: string[],
 ): ComparisonResult {
-  const differences = new Set<string>();
-  const baseDifferences = new Set<string>();
-  const comparisonDifferenceDetails = new Map<
-    string,
-    { baseValue: unknown; comparisonValue: unknown; columnName: string }
-  >();
-  const baseDifferenceDetails = new Map<
-    string,
-    { baseValue: unknown; comparisonValue: unknown; columnName: string }
-  >();
-  const duplicateComparisonRows = new Set<number>();
-  const duplicateBaseRows = new Set<number>();
-  const ambiguousComparisonRows = new Set<number>();
-  const ambiguousBaseRows = new Set<number>();
-  const unmatchableComparisonRows = new Set<number>();
-  const unmatchableBaseRows = new Set<number>();
-  const unmatchedComparisonRows = new Set<number>();
-  const unmatchedBaseRowIndexes = new Set<number>();
-  const keyNames = new Set(keyColumnNames.map((name) => name.toLowerCase()));
-  const keyMappings = columnMappings.filter((mapping) =>
-    keyNames.has(mapping.columnName.toLowerCase()),
-  );
-  const indexedBaseRows = indexRows(baseData, keyMappings, "baseIndex");
-  const indexedComparisonRows = indexRows(
+  return new ComparisonAccumulator(
+    baseData,
     comparisonData,
-    keyMappings,
-    "comparisonIndex",
-  );
-  const baseRowsByKey = indexedBaseRows.rowsByKey;
-  const comparisonRowsByKey = indexedComparisonRows.rowsByKey;
-  const baseRowKeys = getRowKeyLabels(baseData, keyMappings, "baseIndex");
-  const comparisonRowKeys = getRowKeyLabels(
-    comparisonData,
-    keyMappings,
-    "comparisonIndex",
-  );
-  indexedBaseRows.unmatchableRows.forEach((index) => {
-    unmatchableBaseRows.add(index);
-    ambiguousBaseRows.add(index);
-  });
-  indexedComparisonRows.unmatchableRows.forEach((index) => {
-    unmatchableComparisonRows.add(index);
-    ambiguousComparisonRows.add(index);
-  });
-  let unmatchedBaseRows = 0;
-  let matchedRows = 0;
-
-  const allKeys = new Set([
-    ...baseRowsByKey.keys(),
-    ...comparisonRowsByKey.keys(),
-  ]);
-
-  allKeys.forEach((key) => {
-    const baseIndexes = baseRowsByKey.get(key) ?? [];
-    const comparisonIndexes = comparisonRowsByKey.get(key) ?? [];
-
-    if (baseIndexes.length > 1 || comparisonIndexes.length > 1) {
-      if (baseIndexes.length > 1) {
-        baseIndexes.forEach((index) => duplicateBaseRows.add(index));
-      }
-      baseIndexes.forEach((index) => ambiguousBaseRows.add(index));
-      if (comparisonIndexes.length > 1) {
-        comparisonIndexes.forEach((index) =>
-          duplicateComparisonRows.add(index),
-        );
-      }
-      comparisonIndexes.forEach((index) => ambiguousComparisonRows.add(index));
-      return;
-    }
-
-    if (baseIndexes.length === 0) {
-      comparisonIndexes.forEach((index) => unmatchedComparisonRows.add(index));
-      return;
-    }
-
-    if (comparisonIndexes.length === 0) {
-      unmatchedBaseRows += baseIndexes.length;
-      baseIndexes.forEach((index) => unmatchedBaseRowIndexes.add(index));
-      return;
-    }
-
-    matchedRows++;
-    const baseRow = baseData[baseIndexes[0]];
-    const comparisonRow = comparisonData[comparisonIndexes[0]];
-    columnMappings.forEach((mapping) => {
-      if (
-        !valuesEqual(
-          baseRow[mapping.baseIndex],
-          comparisonRow[mapping.comparisonIndex],
-        )
-      ) {
-        differences.add(`${comparisonIndexes[0]},${mapping.comparisonIndex}`);
-        baseDifferences.add(`${baseIndexes[0]},${mapping.baseIndex}`);
-        const detail = {
-          baseValue: baseRow[mapping.baseIndex],
-          comparisonValue: comparisonRow[mapping.comparisonIndex],
-          columnName: mapping.columnName,
-        };
-        comparisonDifferenceDetails.set(
-          `${comparisonIndexes[0]},${mapping.comparisonIndex}`,
-          detail,
-        );
-        baseDifferenceDetails.set(
-          `${baseIndexes[0]},${mapping.baseIndex}`,
-          detail,
-        );
-      }
-    });
-  });
-
-  return {
     columnMappings,
-    differences,
-    baseDifferences,
-    comparisonDifferenceDetails,
-    baseDifferenceDetails,
-    comparisonRowKeys,
-    baseRowKeys,
-    duplicateComparisonRows,
-    duplicateBaseRows,
-    ambiguousComparisonRows,
-    ambiguousBaseRows,
-    unmatchableComparisonRows,
-    unmatchableBaseRows,
-    unmatchedComparisonRows,
-    unmatchedBaseRows,
-    unmatchedBaseRowIndexes,
-    matchedRows,
-  };
-}
-
-function getRowKeyLabels(
-  rows: unknown[][],
-  keyMappings: ColumnMapping[],
-  indexProperty: "baseIndex" | "comparisonIndex",
-): Map<number, string> {
-  return new Map(
-    rows.map((row, rowIndex) => [
-      rowIndex,
-      keyMappings
-        .map((mapping) => {
-          const value = row[mapping[indexProperty]];
-          return `${mapping.columnName}=${value === null || value === undefined ? "NULL" : String(value)}`;
-        })
-        .join(", "),
-    ]),
-  );
-}
-
-interface IndexedRows {
-  rowsByKey: Map<string, number[]>;
-  unmatchableRows: Set<number>;
-}
-
-function indexRows(
-  rows: unknown[][],
-  keyMappings: ColumnMapping[],
-  indexProperty: "baseIndex" | "comparisonIndex",
-): IndexedRows {
-  const rowsByKey = new Map<string, number[]>();
-  const unmatchableRows = new Set<number>();
-
-  rows.forEach((row, rowIndex) => {
-    const keyValues = keyMappings.map((mapping) => row[mapping[indexProperty]]);
-    if (
-      keyValues.length === 0 ||
-      keyValues.some((value) => value === null || value === undefined)
-    ) {
-      unmatchableRows.add(rowIndex);
-      return;
-    }
-
-    const key = JSON.stringify(keyValues.map((value) => String(value)));
-    const indexes = rowsByKey.get(key);
-    if (indexes) {
-      indexes.push(rowIndex);
-    } else {
-      rowsByKey.set(key, [rowIndex]);
-    }
-  });
-
-  return { rowsByKey, unmatchableRows };
+    keyColumnNames,
+  ).getSnapshot();
 }
 
 function valuesEqual(value1: unknown, value2: unknown): boolean {

@@ -1,6 +1,10 @@
 import { SchemaField } from "@src/types";
 import { describe, expect, it } from "vitest";
-import { compareTabData, mapColumns } from "./comparisonUtils";
+import {
+  ComparisonAccumulator,
+  compareTabData,
+  mapColumns,
+} from "./comparisonUtils";
 
 const schema = (names: string[]): SchemaField[] =>
   names.map((name) => ({ name, type: "nvarchar" }));
@@ -145,5 +149,39 @@ describe("comparisonUtils", () => {
         (mapping) => mapping.columnName,
       ),
     ).toEqual(["id"]);
+  });
+
+  it("updates only newly streamed rows and matches full comparison output", () => {
+    const mappings = mapColumns(schema(["id", "value"]), schema(["id", "value"]));
+    const baseRows: unknown[][] = [
+      [1, "base"],
+      [2, "base only"],
+    ];
+    const comparisonRows: unknown[][] = [[1, "old"]];
+    const accumulator = new ComparisonAccumulator(
+      baseRows,
+      comparisonRows,
+      mappings,
+      ["id"],
+    );
+
+    expect(accumulator.result).toEqual(
+      compareTabData(baseRows, comparisonRows, mappings, ["id"]),
+    );
+
+    comparisonRows.push([1, "duplicate"], [2, "now matched"]);
+    expect(accumulator.update()).toBe(true);
+    expect(accumulator.result).toEqual(
+      compareTabData(baseRows, comparisonRows, mappings, ["id"]),
+    );
+    expect(accumulator.result.duplicateComparisonRows).toEqual(new Set([0, 1]));
+    expect(accumulator.result.unmatchedBaseRows).toBe(0);
+
+    baseRows.push([null, "unmatchable"]);
+    expect(accumulator.update()).toBe(true);
+    expect(accumulator.result).toEqual(
+      compareTabData(baseRows, comparisonRows, mappings, ["id"]),
+    );
+    expect(accumulator.update()).toBe(false);
   });
 });

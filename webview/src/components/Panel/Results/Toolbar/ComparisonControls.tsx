@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { FaExchangeAlt, FaCheck, FaTimes, FaEye } from "react-icons/fa";
-import { getTabResultRows } from "../../../../store/tabResultDataStore";
+import { useComparisonResultStore } from "../../../../store/comparisonResultStore";
 import { useTabStore } from "../../../../store/tabStore";
-import { mapColumns, compareTabData } from "../../../../utils/comparisonUtils";
+import { mapColumns } from "../../../../utils/comparisonUtils";
 import styles from "./ComparisonControls.module.css";
 
 interface ComparisonControlsProps {
@@ -11,7 +11,7 @@ interface ComparisonControlsProps {
 
 const keyNamePriority = (name: string): number => {
   const normalizedName = name.trim().toLowerCase();
-  const knownNames = ["_id", "id", "_key", "key", "pk"];
+  const knownNames = ["_id", "id", "_key", "key", "_pk", "pk"];
   const knownNameIndex = knownNames.indexOf(normalizedName);
   if (knownNameIndex !== -1) {
     return knownNameIndex;
@@ -20,6 +20,9 @@ const keyNamePriority = (name: string): number => {
     return knownNames.length;
   }
   if (normalizedName.endsWith("_key")) {
+    return knownNames.length + 1;
+  }
+  if (normalizedName.endsWith("_pk")) {
     return knownNames.length + 1;
   }
   return Number.MAX_SAFE_INTEGER;
@@ -46,6 +49,9 @@ const ComparisonControls: React.FC<ComparisonControlsProps> = ({
   );
   const currentTab = useTabStore((state) =>
     state.tabs.find((tab) => tab.id === currentTabId),
+  );
+  const comparisonResult = useComparisonResultStore((state) =>
+    state.comparisonTabId === currentTabId ? state.result : null,
   );
   const setBaseTab = useTabStore((state) => state.setBaseTab);
   const compareWithSelectedTab = useTabStore(
@@ -107,13 +113,9 @@ const ComparisonControls: React.FC<ComparisonControlsProps> = ({
       return null;
     }
 
-    const columnMappings = mapColumns(baseTab.schema, comparisonTab.schema);
-    const result = compareTabData(
-      getTabResultRows(baseTab.id),
-      getTabResultRows(comparisonTab.id),
-      columnMappings,
-      selectedComparisonKeyColumns,
-    );
+    const columnMappings =
+      comparisonResult?.columnMappings ??
+      mapColumns(baseTab.schema, comparisonTab.schema);
     const matchedColumnNames = columnMappings.map(
       (mapping) => mapping.columnName,
     );
@@ -122,7 +124,7 @@ const ComparisonControls: React.FC<ComparisonControlsProps> = ({
     );
 
     return {
-      totalDifferences: result.differences.size,
+      totalDifferences: comparisonResult?.differences.size ?? 0,
       matchingColumns: columnMappings.length,
       baseTabTitle: baseTab.title,
       comparisonTabTitle: comparisonTab.title,
@@ -133,24 +135,28 @@ const ComparisonControls: React.FC<ComparisonControlsProps> = ({
       comparisonOnlyColumns: comparisonTab.schema
         .filter((column) => !matchedNames.has(column.name.toLowerCase()))
         .map((column) => column.name),
-      duplicateBaseRows: result.duplicateBaseRows.size,
-      duplicateComparisonRows: result.duplicateComparisonRows.size,
-      ambiguousBaseRows: result.ambiguousBaseRows.size,
-      ambiguousComparisonRows: result.ambiguousComparisonRows.size,
-      unmatchableBaseRows: result.unmatchableBaseRows.size,
-      unmatchableComparisonRows: result.unmatchableComparisonRows.size,
-      addedRows: result.unmatchedComparisonRows.size,
-      removedRows: result.unmatchedBaseRows,
-      matchedRows: result.matchedRows,
+      duplicateBaseRows: comparisonResult?.duplicateBaseRows.size ?? 0,
+      duplicateComparisonRows:
+        comparisonResult?.duplicateComparisonRows.size ?? 0,
+      ambiguousBaseRows: comparisonResult?.ambiguousBaseRows.size ?? 0,
+      ambiguousComparisonRows:
+        comparisonResult?.ambiguousComparisonRows.size ?? 0,
+      unmatchableBaseRows: comparisonResult?.unmatchableBaseRows.size ?? 0,
+      unmatchableComparisonRows:
+        comparisonResult?.unmatchableComparisonRows.size ?? 0,
+      addedRows: comparisonResult?.unmatchedComparisonRows.size ?? 0,
+      removedRows: comparisonResult?.unmatchedBaseRows ?? 0,
+      matchedRows: comparisonResult?.matchedRows ?? 0,
       isUpdating: baseTab.isLoading || comparisonTab.isLoading,
+      isReady: comparisonResult !== null,
     };
   }, [
     isInComparisonMode,
     selectedBaseTabId,
     selectedComparisonTabId,
-    selectedComparisonKeyColumns,
     baseTab,
     currentTab,
+    comparisonResult,
   ]);
 
   const handleButtonClick = (): void => {
@@ -235,6 +241,11 @@ const ComparisonControls: React.FC<ComparisonControlsProps> = ({
                 Results are still streaming; comparison updates live.
               </div>
             )}
+            {!comparisonStats.isReady && (
+              <div className={styles.updatingNotice}>
+                Waiting for comparison columns and result data.
+              </div>
+            )}
             <div className={styles.tooltipStats}>
               <div className={styles.statRow}>
                 <strong>{comparisonStats.totalDifferences}</strong> differing
@@ -251,8 +262,8 @@ const ComparisonControls: React.FC<ComparisonControlsProps> = ({
                 <strong>{comparisonStats.duplicateComparisonRows}</strong>
               </div>
               <div className={styles.statRow}>
-                Rows with NULL or missing keys, excluded from added/removed: base{" "}
-                <strong>{comparisonStats.unmatchableBaseRows}</strong>,
+                Rows with NULL or missing keys, excluded from added/removed:
+                base <strong>{comparisonStats.unmatchableBaseRows}</strong>,
                 comparison{" "}
                 <strong>{comparisonStats.unmatchableComparisonRows}</strong>
               </div>
@@ -266,19 +277,27 @@ const ComparisonControls: React.FC<ComparisonControlsProps> = ({
               <div className={styles.sectionTitle}>Highlight colors:</div>
               <div className={styles.colorLegend}>
                 <span className={styles.legendItem}>
-                  <span className={`${styles.legendSwatch} ${styles.addedSwatch}`} />
+                  <span
+                    className={`${styles.legendSwatch} ${styles.addedSwatch}`}
+                  />
                   Added row
                 </span>
                 <span className={styles.legendItem}>
-                  <span className={`${styles.legendSwatch} ${styles.removedSwatch}`} />
+                  <span
+                    className={`${styles.legendSwatch} ${styles.removedSwatch}`}
+                  />
                   Removed row
                 </span>
                 <span className={styles.legendItem}>
-                  <span className={`${styles.legendSwatch} ${styles.differentSwatch}`} />
+                  <span
+                    className={`${styles.legendSwatch} ${styles.differentSwatch}`}
+                  />
                   Changed value
                 </span>
                 <span className={styles.legendItem}>
-                  <span className={`${styles.legendSwatch} ${styles.ambiguousSwatch}`} />
+                  <span
+                    className={`${styles.legendSwatch} ${styles.ambiguousSwatch}`}
+                  />
                   Duplicate or unusable key
                 </span>
               </div>

@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { initializeMessageHandling } from "../events/initializeMessageHandling";
+import { useComparisonSync } from "../hooks/useComparisonSync";
 import { useSmartDrillStore } from "../store/smartDrillStore";
 import { useTabStore } from "../store/tabStore";
 import styles from "./App.module.css";
@@ -72,6 +73,8 @@ const App: React.FC = () => {
     const cleanup = initializeMessageHandling();
     return cleanup;
   }, []);
+
+  useComparisonSync();
 
   // Full editor view for the main editor
   return (

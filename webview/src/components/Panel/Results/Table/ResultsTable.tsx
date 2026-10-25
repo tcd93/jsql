@@ -21,15 +21,10 @@ import { useShallow } from "zustand/react/shallow";
 import { useBatchedData } from "../../../../hooks/useBatchedData";
 import { useColumnAggregation } from "../../../../hooks/useColumnAggregation";
 import { useTableBehavior } from "../../../../hooks/useTableBehavior";
+import { useComparisonResultStore } from "../../../../store/comparisonResultStore";
 import { useFooterStore } from "../../../../store/footerStore";
-import { getTabResultRows } from "../../../../store/tabResultDataStore";
 import { useTabStore } from "../../../../store/tabStore";
 import { estimateColumnWidth } from "../../../../utils/columnWidthUtils";
-import {
-  mapColumns,
-  compareTabData,
-  ComparisonResult,
-} from "../../../../utils/comparisonUtils";
 import DataCell from "../Cell/DataCell";
 import { RowNumberCell } from "../Cell/RowNumberCell";
 import { FooterRow } from "./FooterRow";
@@ -60,19 +55,6 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ searchText, tabId }) => {
   const selectedComparisonTabId = useTabStore(
     (state) => state.selectedComparisonTabId,
   );
-  const selectedComparisonKeyColumns = useTabStore(
-    (state) => state.selectedComparisonKeyColumns,
-  );
-  const baseTab = useTabStore((state) =>
-    selectedBaseTabId
-      ? state.tabs.find((tab) => tab.id === selectedBaseTabId)
-      : undefined,
-  );
-  const comparisonTab = useTabStore((state) =>
-    selectedComparisonTabId
-      ? state.tabs.find((tab) => tab.id === selectedComparisonTabId)
-      : undefined,
-  );
   const groupedColumns =
     useTabStore(
       useShallow((state) =>
@@ -86,48 +68,22 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ searchText, tabId }) => {
     useShallow((state) => state.getTab(tabId)?.expandedState),
   );
   const columnOrder = useTabStore((state) => state.getTab(tabId)?.columnOrder);
+  const comparisonResult = useComparisonResultStore((state) =>
+    state.baseTabId === selectedBaseTabId &&
+    state.comparisonTabId === selectedComparisonTabId &&
+    (tabId === state.baseTabId || tabId === state.comparisonTabId)
+      ? state.result
+      : null,
+  );
 
   const validAffectedRows = useMemo(() => {
     return stats?.affectedRows?.filter((row) => row > 0) ?? [];
   }, [stats?.affectedRows]);
 
-  const batchData = useBatchedData(tabId, {
-    batchSize: 50,
-    batchInterval: 50,
-  });
+  const batchData = useBatchedData(tabId);
 
   // Monitor column selections for aggregation metrics
   useColumnAggregation(tabId);
-
-  // Calculate comparison data when in comparison mode
-  const comparisonResult = useMemo((): ComparisonResult | null => {
-    if (
-      !selectedBaseTabId ||
-      !selectedComparisonTabId ||
-      (tabId !== selectedBaseTabId && tabId !== selectedComparisonTabId)
-    ) {
-      return null;
-    }
-
-    if (!baseTab || !comparisonTab) {
-      return null;
-    }
-
-    const columnMappings = mapColumns(baseTab.schema, comparisonTab.schema);
-    return compareTabData(
-      getTabResultRows(baseTab.id),
-      getTabResultRows(comparisonTab.id),
-      columnMappings,
-      selectedComparisonKeyColumns,
-    );
-  }, [
-    selectedBaseTabId,
-    selectedComparisonTabId,
-    selectedComparisonKeyColumns,
-    tabId,
-    baseTab,
-    comparisonTab,
-  ]);
 
   const columns = useMemo<ColumnDef<unknown[]>[]>(() => {
     if (!schema || schema.length === 0) {

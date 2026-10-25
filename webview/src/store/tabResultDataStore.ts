@@ -1,14 +1,22 @@
-import { Observable, Subject } from "rxjs";
+import { Observable, Subject, bufferTime, filter, map, share } from "rxjs";
+
+const RESULT_BATCH_INTERVAL = 50;
+const RESULT_BATCH_SIZE = 50;
 
 export interface TabResultDataSource {
-  readonly dataStream: Observable<unknown[][]>;
+  readonly batchedDataStream: Observable<unknown[][]>;
   getRows(): unknown[][];
 }
 
 class TabResultData implements TabResultDataSource {
   private rows: unknown[][] = [];
   private readonly subject = new Subject<unknown[][]>();
-  readonly dataStream = this.subject.asObservable();
+  readonly batchedDataStream = this.subject.pipe(
+    bufferTime(RESULT_BATCH_INTERVAL, undefined, RESULT_BATCH_SIZE),
+    filter((batch) => batch.length > 0),
+    map((batch) => batch.flat()),
+    share(),
+  );
 
   append(rows: unknown[][]): void {
     for (const row of rows) {
