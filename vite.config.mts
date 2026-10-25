@@ -19,6 +19,10 @@ export default {
   resolve: {
     tsconfigPaths: true,
   },
+  test: {
+    include: ["src/test/**/*.test.{ts,tsx}", "src/test/**/*.spec.{ts,tsx}"],
+    setupFiles: [resolve(rootDir, "src/test/setupConsole.ts")],
+  },
   build: {
     lib: {
       entry: resolve(rootDir, "src/extension.ts"),

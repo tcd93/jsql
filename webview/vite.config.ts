@@ -1,6 +1,10 @@
 /// <reference types="vitest" />
+import { dirname, resolve } from "path";
+import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import checker from "vite-plugin-checker";
+
+const webviewDir = dirname(fileURLToPath(import.meta.url));
 
 export default {
   plugins: [
@@ -51,6 +55,6 @@ export default {
   test: {
     environment: "jsdom",
     globals: true,
-    setupFiles: [],
+    setupFiles: [resolve(webviewDir, "test/setupConsole.ts")],
   },
 };

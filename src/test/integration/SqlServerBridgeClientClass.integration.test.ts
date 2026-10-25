@@ -31,7 +31,7 @@ describe("SqlServerBridgeClient Integration Tests", () => {
   beforeAll(async () => {
     fixture = new LocalDbFixture();
     await fixture.initialize();
-  });
+  }, 30000);
 
   afterAll(async () => {
     await fixture.dispose();
@@ -53,11 +53,9 @@ describe("SqlServerBridgeClient Integration Tests", () => {
     { timeout: 5000 },
     async () => {
       const connectionName = "test-conn-1";
-      const connectionString = LocalDbHelper.getLocalDbConnectionString();
 
       const result = await client.sendRequest("createConnection", {
-        connectionName,
-        connectionString,
+        ...LocalDbHelper.getLocalDbConnectionParams(connectionName),
       });
 
       expect(result).toBeDefined();
@@ -66,19 +64,18 @@ describe("SqlServerBridgeClient Integration Tests", () => {
       const payload = result as CreateConnectionPayload;
       expect(payload.success).toBe(true);
       expect(payload.error).toBeUndefined();
-    }
+    },
   );
 
   it("should execute query and return results", { timeout: 5000 }, async () => {
     const connectionName = "test-conn-query";
-    const connectionString = LocalDbHelper.getLocalDbConnectionString(
-      fixture.databaseName
-    );
 
     // Create connection first
     await client.sendRequest("createConnection", {
-      connectionName,
-      connectionString,
+      ...LocalDbHelper.getLocalDbConnectionParams(
+        connectionName,
+        fixture.databaseName,
+      ),
     });
 
     // Execute query
@@ -113,14 +110,13 @@ describe("SqlServerBridgeClient Integration Tests", () => {
 
   it("should stream query results with events", { timeout: 5000 }, async () => {
     const connectionName = "test-conn-streaming";
-    const connectionString = LocalDbHelper.getLocalDbConnectionString(
-      fixture.databaseName
-    );
 
     // Create connection first
     await client.sendRequest("createConnection", {
-      connectionName,
-      connectionString,
+      ...LocalDbHelper.getLocalDbConnectionParams(
+        connectionName,
+        fixture.databaseName,
+      ),
     });
 
     // Collect streaming events
@@ -168,14 +164,13 @@ describe("SqlServerBridgeClient Integration Tests", () => {
 
   it("should close connection successfully", { timeout: 5000 }, async () => {
     const connectionName = "test-conn-close";
-    const connectionString = LocalDbHelper.getLocalDbConnectionString(
-      fixture.databaseName
-    );
 
     // Create connection first
     await client.sendRequest("createConnection", {
-      connectionName,
-      connectionString,
+      ...LocalDbHelper.getLocalDbConnectionParams(
+        connectionName,
+        fixture.databaseName,
+      ),
     });
 
     // Close connection
@@ -196,14 +191,13 @@ describe("SqlServerBridgeClient Integration Tests", () => {
     { timeout: 5000 },
     async () => {
       const connectionName = "test-conn-multi";
-      const connectionString = LocalDbHelper.getLocalDbConnectionString(
-        fixture.databaseName
-      );
 
       // Create connection
       const createResult = await client.sendRequest("createConnection", {
-        connectionName,
-        connectionString,
+        ...LocalDbHelper.getLocalDbConnectionParams(
+          connectionName,
+          fixture.databaseName,
+        ),
       });
 
       expect(createResult).toBeDefined();
@@ -242,7 +236,7 @@ describe("SqlServerBridgeClient Integration Tests", () => {
       expect(closeResult).toBeDefined();
       const closePayload = closeResult as CloseConnectionPayload;
       expect(closePayload.success).toBe(true);
-    }
+    },
   );
 
   it(
@@ -250,14 +244,13 @@ describe("SqlServerBridgeClient Integration Tests", () => {
     { timeout: 5000 },
     async () => {
       const connectionName = "test-conn-dispose";
-      const connectionString = LocalDbHelper.getLocalDbConnectionString(
-        fixture.databaseName
-      );
 
       // Create connection to start the process
       await client.sendRequest("createConnection", {
-        connectionName,
-        connectionString,
+        ...LocalDbHelper.getLocalDbConnectionParams(
+          connectionName,
+          fixture.databaseName,
+        ),
       });
 
       // Dispose the client
@@ -274,7 +267,7 @@ describe("SqlServerBridgeClient Integration Tests", () => {
       expect(result).toBeDefined();
       const payload = result as ExecuteQueryPayload;
       expect(payload.error).toBeDefined();
-    }
+    },
   );
 
   it(
@@ -282,14 +275,13 @@ describe("SqlServerBridgeClient Integration Tests", () => {
     { timeout: 10000 },
     async () => {
       const connectionName = "test-conn-cancel";
-      const connectionString = LocalDbHelper.getLocalDbConnectionString(
-        fixture.databaseName
-      );
 
       // Create connection first
       await client.sendRequest("createConnection", {
-        connectionName,
-        connectionString,
+        ...LocalDbHelper.getLocalDbConnectionParams(
+          connectionName,
+          fixture.databaseName,
+        ),
       });
 
       // Collect streaming events
@@ -359,12 +351,12 @@ describe("SqlServerBridgeClient Integration Tests", () => {
           typeof (p.data as { message: string }).message === "string" &&
           (p.data as { message: string }).message
             .toLowerCase()
-            .includes("cancel")
+            .includes("cancel"),
       );
 
       // Check for complete events
       const completeEvents = streamingEvents.filter(
-        (p) => p.event === "complete"
+        (p) => p.event === "complete",
       );
 
       // Verify cancellation was successful
@@ -408,6 +400,6 @@ describe("SqlServerBridgeClient Integration Tests", () => {
       if (totalRowsReceived > 0) {
         expect(dataEvents.length).toBeGreaterThan(0);
       }
-    }
+    },
   );
 });
