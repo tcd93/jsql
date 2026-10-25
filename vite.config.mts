@@ -1,6 +1,8 @@
-import { resolve } from "path";
+import { dirname, resolve } from "path";
+import { fileURLToPath } from "node:url";
 import checker from "vite-plugin-checker";
-import tsconfigPaths from "vite-tsconfig-paths";
+
+const rootDir = dirname(fileURLToPath(import.meta.url));
 
 export default {
   plugins: [
@@ -13,11 +15,13 @@ export default {
         useFlatConfig: true,
       },
     }),
-    tsconfigPaths(),
   ],
+  resolve: {
+    tsconfigPaths: true,
+  },
   build: {
     lib: {
-      entry: resolve(__dirname, "src/extension.ts"),
+      entry: resolve(rootDir, "src/extension.ts"),
       formats: ["cjs"],
       fileName: () => "extension.js",
     },

@@ -1,12 +1,10 @@
 /// <reference types="vitest" />
 import react from "@vitejs/plugin-react";
 import checker from "vite-plugin-checker";
-import tsconfigPaths from "vite-tsconfig-paths";
 
 export default {
   plugins: [
     react(),
-    tsconfigPaths(),
     !process.env.VITEST
       ? checker({
           typescript: true,
@@ -18,6 +16,9 @@ export default {
         })
       : undefined,
   ],
+  resolve: {
+    tsconfigPaths: true,
+  },
   // Add dev server configuration
   server: {
     proxy: {
