@@ -48,7 +48,8 @@ export interface SqlServerConnectionProfile extends _ConnectionProfile {
   authentication?:
     | "Sql Password"
     | "Integrated Security"
-    | "Active Directory Interactive";
+    | "Active Directory Interactive"
+    | "Active Directory Default";
   applicationName?: string;
   applicationIntent?: "ReadWrite" | "ReadOnly";
 

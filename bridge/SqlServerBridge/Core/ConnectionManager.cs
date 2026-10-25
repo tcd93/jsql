@@ -170,6 +170,10 @@ public class ConnectionManager : IConnectionManager, IDisposable
                 builder.UserID = parameters.ClientId;
             }
         }
+        else if (parameters.Authentication == AuthenticationMethods.ActiveDirectoryDefault)
+        {
+            builder.Authentication = SqlAuthenticationMethod.ActiveDirectoryDefault;
+        }
         else if (parameters.Authentication == AuthenticationMethods.IntegratedSecurity ||
                  (string.IsNullOrEmpty(parameters.Authentication) &&
                   string.IsNullOrEmpty(parameters.Username) &&

@@ -14,6 +14,10 @@ public static class AuthenticationMethods
     /// Active Directory Interactive authentication
     /// </summary>
     public const string ActiveDirectoryInteractive = "Active Directory Interactive";
-}
 
+    /// <summary>
+    /// Active Directory Default authentication
+    /// </summary>
+    public const string ActiveDirectoryDefault = "Active Directory Default";
+}
 

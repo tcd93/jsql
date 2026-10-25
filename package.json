@@ -139,6 +139,16 @@
           "description": "Use CodeMirror for the SQL editor. If disabled, the default VS Code editor will be used.",
           "scope": "window"
         },
+        "jSql.azureSqlAuthentication": {
+          "type": "string",
+          "enum": [
+            "Active Directory Interactive",
+            "Active Directory Default"
+          ],
+          "default": "Active Directory Interactive",
+          "description": "Fallback authentication method for Azure SQL connections when the MSSQL connection string omits the method and username/password.",
+          "scope": "window"
+        },
         "jSql.providers": {
           "type": "object",
           "description": "Database provider configurations",

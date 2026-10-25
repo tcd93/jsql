@@ -356,7 +356,11 @@ export class MssqlExtensionService extends vscode.Disposable {
       authentication = "Integrated Security";
     } else if (!username && !password) {
       // Newer versions of vscode-mssql (>=1.40) can omit authentication/user fields for Azure MFA flows.
-      authentication = "Active Directory Interactive";
+      authentication = vscode.workspace
+        .getConfiguration("jSql")
+        .get<
+          "Active Directory Interactive" | "Active Directory Default"
+        >("azureSqlAuthentication", "Active Directory Interactive");
     } else {
       authentication = "Sql Password";
     }

@@ -42,6 +42,25 @@ public class ConnectionManagerTests
     }
 
     [Fact]
+    public void BuildConnectionString_WithActiveDirectoryDefault_UsesDefaultAuthentication()
+    {
+        var parameters = new CreateConnectionParams
+        {
+            Authentication = AuthenticationMethods.ActiveDirectoryDefault,
+            Host = "jsql-extension-test.database.windows.net",
+            Port = 1433
+        };
+
+        var result = ConnectionManager.BuildConnectionString(parameters);
+        var builder = new SqlConnectionStringBuilder(result);
+
+        Assert.Equal(
+            SqlAuthenticationMethod.ActiveDirectoryDefault,
+            builder.Authentication
+        );
+    }
+
+    [Fact]
     public void BuildConnectionString_WithSqlAuthentication_EnablesMars()
     {
         var parameters = new CreateConnectionParams
