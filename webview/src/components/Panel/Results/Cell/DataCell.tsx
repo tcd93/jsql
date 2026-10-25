@@ -2,6 +2,7 @@ import { Cell, flexRender } from "@tanstack/react-table";
 import React, { JSX, useCallback, useMemo } from "react";
 import { useGlobalContextMenuStore } from "../../../../store/globalContextMenuStore";
 import { useSmartDrillStore } from "../../../../store/smartDrillStore";
+import { useTabStore } from "../../../../store/tabStore";
 import { ComparisonResult } from "../../../../utils/comparisonUtils";
 import { formatCell } from "../../../../utils/formatUtils";
 import { CellContextMenu } from "./CellContextMenu";
@@ -17,6 +18,17 @@ const DataCellFunc = ({
   comparisonSide: "base" | "comparison";
 }): JSX.Element => {
   const { column } = cell;
+  const isExpanded = useTabStore((state) => {
+    const activeTabId = state.activeTabId;
+    const expandedState = activeTabId
+      ? state.getTab(activeTabId)?.expandedState
+      : undefined;
+    return (
+      expandedState === true ||
+      (typeof expandedState === "object" &&
+        expandedState[cell.row.id] === true)
+    );
+  });
 
   const setContextMenu = useGlobalContextMenuStore(
     (state) => state.setContextMenu,
@@ -224,7 +236,7 @@ const DataCellFunc = ({
               }}
               className={styles.expandButton}
             >
-              {row.getIsExpanded() ? "▼" : "▶"}
+              {isExpanded ? "▼" : "▶"}
             </button>
             {renderContent()}
             <span className={styles.groupCount}>({row.subRows.length})</span>

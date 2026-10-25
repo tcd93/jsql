@@ -2,14 +2,14 @@
   "name": "jsql-extension",
   "displayName": "JSQL Editor",
   "description": "Advanced SQL editor with SQL Server integration",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "publisher": "jiiyung",
   "repository": {
     "type": "git",
     "url": "https://github.com/tcd93/jsql"
   },
   "engines": {
-    "vscode": "^1.99.1"
+    "vscode": "^1.140.1"
   },
   "categories": [
     "Other"
