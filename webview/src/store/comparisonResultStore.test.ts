@@ -8,6 +8,8 @@ import { useComparisonResultStore } from "./comparisonResultStore";
 import { appendTabResultData } from "./tabResultDataStore";
 import { useTabStore } from "./tabStore";
 
+Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+
 const baseTabId = "comparison-coordinator-base";
 const comparisonTabId = "comparison-coordinator-comparison";
 let root: Root | undefined;

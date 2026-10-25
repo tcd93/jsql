@@ -222,11 +222,11 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ searchText, tabId }) => {
 
   // Let the table size itself to its columns' natural width instead of always
   // stretching to fill the container (see ResultsTable.module.css)
-  const tableWidthStyle: React.CSSProperties =
+  const tableWidthStyle: React.CSSProperties & {
+    "--table-total-size"?: string;
+  } =
     table.getFlatHeaders().length > 0
-      ? ({
-          "--table-total-size": `${table.getTotalSize()}px`,
-        } as React.CSSProperties)
+      ? { "--table-total-size": `${table.getTotalSize()}px` }
       : {};
 
   const virtuosoComponents: TableComponents<Row<unknown[]>, unknown[]> = {
