@@ -3,12 +3,17 @@ import {
   GenerateSmartDrillQueryMessage,
   SmartDrillTableRequest,
 } from "@src/types";
+import { useSchemaStore } from "../store/schemaStore";
 import { useSmartDrillStore } from "../store/smartDrillStore";
 import { getVSCodeAPI } from "../utils/vscode";
 
 const vscode = getVSCodeAPI();
 
 export const startSmartDrill = async (): Promise<void> => {
+  if (useSchemaStore.getState().isLoading) {
+    return;
+  }
+
   const { selectedCells, setLoading, getUniqueColumnNames } =
     useSmartDrillStore.getState();
 

@@ -346,7 +346,7 @@ export const mockVscodeApi: VSCodeAPI = {
         window.dispatchEvent(
           new MessageEvent("message", { data: schemaDataResponse })
         );
-      }, 1200);
+      }, 12000);
     } else if (message.type === "wv.generateSmartDrillQuery") {
       const generateQueryMessage = message as WebviewMessage & {
         payload: {
@@ -540,7 +540,7 @@ export const mockVscodeApi: VSCodeAPI = {
       };
 
       // Start sending data after schema
-      setTimeout(sendNextBatch, 1200);
+      setTimeout(sendNextBatch, 2000);
     }
   },
   getState: () => null,

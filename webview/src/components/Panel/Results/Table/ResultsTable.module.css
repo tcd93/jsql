@@ -10,6 +10,11 @@
   outline: none;
 }
 
+.resultsTable:focus-visible {
+  outline: 2px solid var(--vscode-focusBorder);
+  outline-offset: -2px;
+}
+
 .nullValue {
   color: var(--vscode-editorGutter-commentRangeForeground);
   font-style: italic;

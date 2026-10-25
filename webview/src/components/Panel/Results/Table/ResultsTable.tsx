@@ -48,6 +48,21 @@ const TableRowFunc = (
   return <tr {...props} className={isGrouped ? styles.groupedRow : ""} />;
 };
 
+const MemoizedTableRow = React.memo(TableRowFunc, (prevProps, nextProps) => {
+  return (
+    prevProps.item.original === nextProps.item.original &&
+    prevProps.item.getIsGrouped() === nextProps.item.getIsGrouped() &&
+    prevProps.item.getIsExpanded() === nextProps.item.getIsExpanded() &&
+    prevProps.item.getIsSelected() === nextProps.item.getIsSelected() &&
+    prevProps.children === nextProps.children
+  );
+});
+
+// Keep Virtuoso's component types stable so streamed updates don't remount rows.
+const virtuosoComponents: TableComponents<Row<unknown[]>, unknown[]> = {
+  TableRow: MemoizedTableRow,
+};
+
 const ResultsTable: React.FC<ResultsTableProps> = ({ searchText, tabId }) => {
   const schema = useTabStore((state) => state.getTab(tabId)?.schema);
   const stats = useTabStore((state) => state.getTab(tabId)?.streamStats);
@@ -229,13 +244,6 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ searchText, tabId }) => {
       ? { "--table-total-size": `${table.getTotalSize()}px` }
       : {};
 
-  const virtuosoComponents: TableComponents<Row<unknown[]>, unknown[]> = {
-    TableRow: React.memo(TableRowFunc, (prevProps, nextProps) => {
-      // Only re-render if the row's data has changed (e.g., due to sorting or filtering)
-      return prevProps.item.original === nextProps.item.original;
-    }),
-  };
-
   const fixedHeaderContent = (): React.JSX.Element => (
     <HeaderRow table={table} />
   );
@@ -268,7 +276,17 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ searchText, tabId }) => {
         </>
       );
     },
-    [comparisonResult, selectedBaseTabId, tabId],
+    // Invalidate Virtuoso's cached cell content when table configuration changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      comparisonResult,
+      selectedBaseTabId,
+      tabId,
+      columns,
+      columnOrder,
+      groupedColumns,
+      expandedState,
+    ],
   );
 
   return (

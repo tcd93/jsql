@@ -34,6 +34,19 @@ export const HeaderContextMenu: React.FC<CellContextMenuProps> = ({
     closeContextMenu();
   };
 
+  const handleCopyColumnName = async (): Promise<void> => {
+    const columnName =
+      header.column.columnDef.header?.toString() ?? header.column.id;
+
+    try {
+      await navigator.clipboard.writeText(columnName);
+    } catch (error) {
+      console.error("Failed to copy column name:", error);
+    } finally {
+      closeContextMenu();
+    }
+  };
+
   const menu = (
     <>
       <div
@@ -46,6 +59,13 @@ export const HeaderContextMenu: React.FC<CellContextMenuProps> = ({
         role="menu"
         tabIndex={0}
       >
+        <button
+          className={styles.menuItem}
+          role="menuitem"
+          onClick={handleCopyColumnName}
+        >
+          Copy column name
+        </button>
         <button
           className={styles.menuItem}
           role="menuitem"
