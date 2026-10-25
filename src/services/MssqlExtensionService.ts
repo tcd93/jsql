@@ -27,11 +27,27 @@ interface MssqlConnectionSession {
 export class MssqlExtensionService extends vscode.Disposable {
   private readonly mssqlApi: Promise<MssqlSharedConnectionsApi | undefined>;
   private readonly outputService: OutputService;
+  private readonly activeConnectionChangedEmitter =
+    new vscode.EventEmitter<SqlServerConnectionProfile>();
+  private readonly connectionChangeSubscription: vscode.Disposable[] = [];
+  private isDisposed = false;
+
+  public readonly onDidChangeActiveConnection =
+    this.activeConnectionChangedEmitter.event;
 
   constructor() {
     super(() => this.dispose());
     this.outputService = getService(OutputService);
     this.mssqlApi = this.initialize();
+  }
+
+  public dispose(): void {
+    this.isDisposed = true;
+    this.connectionChangeSubscription.forEach((subscription) =>
+      subscription.dispose(),
+    );
+    this.connectionChangeSubscription.length = 0;
+    this.activeConnectionChangedEmitter.dispose();
   }
 
   private async initialize(): Promise<MssqlSharedConnectionsApi | undefined> {
@@ -44,6 +60,17 @@ export class MssqlExtensionService extends vscode.Disposable {
           ? mssqlExtension.exports
           : await mssqlExtension.activate();
         const sharedConnectionsApi = extensionApi.getSharedConnectionsApi(1);
+        if (this.isDisposed) {
+          return undefined;
+        }
+        this.connectionChangeSubscription.push(
+          sharedConnectionsApi.onDidChangeActiveEditorConnection(async () => {
+            const profile = await this.getCurrentConnection();
+            if (profile) {
+              this.activeConnectionChangedEmitter.fire(profile);
+            }
+          }),
+        );
         this.outputService.writeToOutput("MSSQL extension is active.", "INFO");
         return sharedConnectionsApi;
       } else {
@@ -103,59 +130,17 @@ export class MssqlExtensionService extends vscode.Disposable {
       return undefined;
     }
 
-    let session: MssqlConnectionSession | undefined;
-    try {
-      session = await this.getConnectionSession(api, true);
-    } catch (error) {
-      this.outputService.writeToOutput(
-        `Error accessing MSSQL connection sharing: ${error}`,
-        "ERROR",
-      );
-      return undefined;
-    }
+    const session = await this.getConnectionSession(api, true);
     if (!session) {
       return undefined;
     }
 
     let connectionChanged: vscode.Disposable | undefined;
-    let debounceTimer: ReturnType<typeof setTimeout> | undefined;
     let timeout: ReturnType<typeof setTimeout> | undefined;
-    let isReadingConnection = false;
-    let hasPendingConnectionChange = false;
-    let scheduleConnectionRead: () => void;
     const selectedConnection = new Promise<
       SqlServerConnectionProfile | undefined
-    >((resolve, reject) => {
-      scheduleConnectionRead = (): void => {
-        if (debounceTimer) {
-          clearTimeout(debounceTimer);
-        }
-        debounceTimer = setTimeout(() => {
-          debounceTimer = undefined;
-          if (isReadingConnection) {
-            hasPendingConnectionChange = true;
-            return;
-          }
-          isReadingConnection = true;
-          void this.readCurrentConnection(session)
-            .then((profile) => {
-              if (profile) {
-                resolve(profile);
-              }
-            })
-            .catch(reject)
-            .finally(() => {
-              isReadingConnection = false;
-              if (hasPendingConnectionChange) {
-                hasPendingConnectionChange = false;
-                scheduleConnectionRead();
-              }
-            });
-        }, 100);
-      };
-      connectionChanged = api.onDidChangeActiveEditorConnection(
-        scheduleConnectionRead,
-      );
+    >((resolve) => {
+      connectionChanged = this.onDidChangeActiveConnection(resolve);
       timeout = setTimeout(() => resolve(undefined), 120_000);
     });
 
@@ -179,9 +164,6 @@ export class MssqlExtensionService extends vscode.Disposable {
       return undefined;
     } finally {
       connectionChanged?.dispose();
-      if (debounceTimer) {
-        clearTimeout(debounceTimer);
-      }
       if (timeout) {
         clearTimeout(timeout);
       }
@@ -194,21 +176,11 @@ export class MssqlExtensionService extends vscode.Disposable {
   private async getCurrentConnection(): Promise<
     SqlServerConnectionProfile | undefined
   > {
-    try {
-      const session = await this.getConnectionSession();
-      return session ? await this.readCurrentConnection(session) : undefined;
-    } catch (error) {
-      this.outputService.writeToOutput(
-        `Error getting active connection from MSSQL extension: ${error}`,
-        "ERROR",
-      );
+    const session = await this.getConnectionSession();
+    if (!session) {
       return undefined;
     }
-  }
 
-  private async readCurrentConnection(
-    session: MssqlConnectionSession,
-  ): Promise<SqlServerConnectionProfile | undefined> {
     const connectionId = await session.api.getActiveEditorConnectionId(
       session.accessToken,
     );

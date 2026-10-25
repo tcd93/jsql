@@ -20,26 +20,31 @@ export class ConnectionProfileService extends vscode.Disposable {
 
   private readonly mssqlExtensionService: MssqlExtensionService;
   private readonly messageService: MessageService;
+  private readonly disposables: vscode.Disposable[] = [];
 
   public constructor() {
-    super(() => {
-      this.dispose();
-      clearInterval(interval);
-    });
+    super(() => this.dispose());
     this.mssqlExtensionService = getService(MssqlExtensionService);
     this.messageService = getService(MessageService);
 
-    // Call `setActiveMssqlConnection` every 500ms on active document
-    const interval = setInterval(async () => {
-      const editorProvider = getService(BaseEditorProvider);
-      const focusedContext = editorProvider?.getFocusedContext();
-      if (focusedContext) {
-        await this.setActiveMssqlConnection(focusedContext);
-      }
-    }, 500);
+    this.disposables.push(
+      this.mssqlExtensionService.onDidChangeActiveConnection((connection) => {
+        const focusedContext =
+          getService(BaseEditorProvider)?.getFocusedContext();
+        if (focusedContext) {
+          this.setActiveConnection(focusedContext, connection, "Connected");
+        }
+      }),
+      vscode.window.onDidChangeActiveTextEditor(() => {
+        void this.syncFocusedMssqlConnection();
+      }),
+    );
+    void this.syncFocusedMssqlConnection();
   }
 
   public dispose(): void {
+    this.disposables.forEach((disposable) => disposable.dispose());
+    this.disposables.length = 0;
     this.connectionMap.clear();
     this.connections = [];
   }
@@ -57,7 +62,7 @@ export class ConnectionProfileService extends vscode.Disposable {
       if (workspaceFolders && workspaceFolders.length > 0) {
         config = vscode.workspace.getConfiguration(
           "jSql",
-          workspaceFolders[0].uri
+          workspaceFolders[0].uri,
         );
       } else {
         config = vscode.workspace.getConfiguration("jSql");
@@ -99,7 +104,7 @@ export class ConnectionProfileService extends vscode.Disposable {
   public setActiveConnection(
     context: vscode.TextDocument,
     connection: ConnectionProfile,
-    connectionStatus: ConnectionStatus
+    connectionStatus: ConnectionStatus,
   ): void {
     const currentConnection = this.connectionMap.get(context);
     if (!currentConnection) {
@@ -124,18 +129,17 @@ export class ConnectionProfileService extends vscode.Disposable {
   }
 
   public async getActiveConnection(
-    context: vscode.TextDocument
+    context: vscode.TextDocument,
   ): Promise<ConnectionProfile | undefined> {
     await this.setActiveMssqlConnection(context);
     return this.connectionMap.get(context);
   }
 
   /**
-   * Since MSSQL extension does not emit events on connection change,
-   * we need to periodically check and sync the active connection here
+   * Refresh the active connection on demand for callers that need the latest profile.
    */
   private async setActiveMssqlConnection(
-    context: vscode.TextDocument
+    context: vscode.TextDocument,
   ): Promise<void> {
     const mssqlConnection =
       await this.mssqlExtensionService.getActiveMssqlConnection();
@@ -144,8 +148,15 @@ export class ConnectionProfileService extends vscode.Disposable {
     }
   }
 
+  private async syncFocusedMssqlConnection(): Promise<void> {
+    const focusedContext = getService(BaseEditorProvider)?.getFocusedContext();
+    if (focusedContext) {
+      await this.setActiveMssqlConnection(focusedContext);
+    }
+  }
+
   public getConnectionStatus(
-    context: vscode.TextDocument
+    context: vscode.TextDocument,
   ): ConnectionStatus | undefined {
     return this.connectionMap.get(context)?.connectionStatus;
   }
