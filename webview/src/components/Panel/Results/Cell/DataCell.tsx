@@ -111,8 +111,15 @@ const DataCellFunc = ({
             }`
           : (cell.getValue()?.toString() ?? "");
 
-  const handleCellClick = useCallback(
-    (event: React.MouseEvent) => {
+  const handleCellPointerDown = useCallback(
+    (event: React.PointerEvent) => {
+      if (
+        event.button !== 0 ||
+        (event.target instanceof Element && event.target.closest("button"))
+      ) {
+        return;
+      }
+
       const anchorCell = useSmartDrillStore.getState().anchorCell;
       if (event.shiftKey && anchorCell) {
         selectRectangle(anchorCell, cell);
@@ -205,7 +212,7 @@ const DataCellFunc = ({
           width: `calc(var(--col-${column.id}-size) * 1px)`,
           ...offset,
         }}
-        onClick={handleCellClick}
+        onPointerDown={handleCellPointerDown}
         onContextMenu={handleContextMenu}
       >
         {isGrouped ? (
