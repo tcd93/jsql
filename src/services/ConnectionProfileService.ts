@@ -35,11 +35,7 @@ export class ConnectionProfileService extends vscode.Disposable {
           this.setActiveConnection(focusedContext, connection, "Connected");
         }
       }),
-      vscode.window.onDidChangeActiveTextEditor(() => {
-        void this.syncFocusedMssqlConnection();
-      }),
     );
-    void this.syncFocusedMssqlConnection();
   }
 
   public dispose(): void {
@@ -145,13 +141,6 @@ export class ConnectionProfileService extends vscode.Disposable {
       await this.mssqlExtensionService.getActiveMssqlConnection();
     if (mssqlConnection) {
       this.setActiveConnection(context, mssqlConnection, "Connected");
-    }
-  }
-
-  private async syncFocusedMssqlConnection(): Promise<void> {
-    const focusedContext = getService(BaseEditorProvider)?.getFocusedContext();
-    if (focusedContext) {
-      await this.setActiveMssqlConnection(focusedContext);
     }
   }
 

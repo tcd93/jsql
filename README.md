@@ -23,7 +23,7 @@ Auto generate queries based on selected data points to explore related informati
 ## Requirements
 - VS Code 1.99.1 or higher
 - For SQL Server: .NET Runtime 10.0 or higher
-- Azure SQL interactive authentication uses the system browser.
+- Azure SQL Active Directory Interactive authentication requests SQL-resource tokens from VS Code's Microsoft sign-in, reusing an existing session when possible and prompting for sign-in or consent if needed. Active Directory Default uses the .NET credential chain.
 
 ## Contributing
 

@@ -263,6 +263,7 @@ export class MssqlExtensionService extends vscode.Disposable {
       params.get("initial database");
     const username = params.get("user id") ?? params.get("uid");
     const password = params.get("password") ?? params.get("pwd");
+    const tenantId = params.get("tenant id") ?? params.get("tenantid");
 
     const normalizedDataSource = dataSource.trim().replace(/^tcp:/i, "");
     const commaSeparator = normalizedDataSource.lastIndexOf(",");
@@ -335,9 +336,15 @@ export class MssqlExtensionService extends vscode.Disposable {
     // https://learn.microsoft.com/en-us/sql/connect/jdbc/connecting-using-azure-active-directory-authentication?view=sql-server-ver17
     if (authenticationParam) {
       switch (authenticationParam.toLowerCase()) {
+        case "azuremfa":
+        case "azure mfa":
         case "activedirectoryinteractive":
         case "active directory interactive":
           authentication = "Active Directory Interactive";
+          break;
+        case "activedirectorydefault":
+        case "active directory default":
+          authentication = "Active Directory Default";
           break;
         case "sqlpassword":
         case "sql password":
@@ -354,8 +361,8 @@ export class MssqlExtensionService extends vscode.Disposable {
     ) {
       // Check for Windows authentication indicators
       authentication = "Integrated Security";
-    } else if (!username && !password) {
-      // Newer versions of vscode-mssql (>=1.40) can omit authentication/user fields for Azure MFA flows.
+    } else if (!password) {
+      // MSSQL Azure MFA profiles can include the account name but omit the password and auth keyword.
       authentication = vscode.workspace
         .getConfiguration("jSql")
         .get<
@@ -388,6 +395,7 @@ export class MssqlExtensionService extends vscode.Disposable {
       minPoolSize,
       maxPoolSize,
       authentication,
+      tenantId,
       applicationName,
       applicationIntent,
       serverSPN,

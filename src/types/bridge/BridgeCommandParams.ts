@@ -1,9 +1,13 @@
 import { SqlServerConnectionProfile } from "../ConnectionProfile";
 
 /** Parameters for creating a connection in the bridge */
-export interface CreateConnectionParams
-  extends Omit<SqlServerConnectionProfile, "name" | "provider"> {
+export interface CreateConnectionParams extends Omit<
+  SqlServerConnectionProfile,
+  "name" | "provider"
+> {
   connectionName: string;
+  /** Ephemeral Microsoft Entra token; never stored with a connection profile. */
+  accessToken?: string;
 }
 
 /** Parameters for executing a query */

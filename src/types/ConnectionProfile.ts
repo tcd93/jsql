@@ -63,10 +63,6 @@ export interface SqlServerConnectionProfile extends _ConnectionProfile {
    * @todo VsCode extension does not currently return this value in connection string
    */
   clientId?: string;
-  /** Access token for Azure AD authentication
-   * @todo VsCode extension does not currently return this value in connection string
-   */
-  accessToken?: string;
 }
 
 export interface PostgreSqlConnectionProfile extends _ConnectionProfile {

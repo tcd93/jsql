@@ -10,12 +10,14 @@ import {
   StreamingMessage,
 } from "../../../types";
 import { getContext, getService, OutputService } from "../../index";
+import { getVscodeSqlAccessToken } from "../../VscodeSqlAuthentication";
 import { SqlServerBridgeClient } from "../bridge/SqlServerBridgeClient";
 import { ConnectionService } from "../index";
 
 export class SqlServerService extends ConnectionService {
   private readonly bridgeClient: SqlServerBridgeClient;
   private readonly streamingCallbacks = new Map<string, StreamingCallbacks>();
+  private readonly authenticationAccountIds = new Map<string, string>();
 
   constructor() {
     super();
@@ -107,7 +109,35 @@ export class SqlServerService extends ConnectionService {
   public dispose(): void {
     this.bridgeClient.removeAllListeners();
     this.streamingCallbacks.clear();
+    this.authenticationAccountIds.clear();
     this.bridgeClient.dispose();
+  }
+
+  private getBridgeConnectionName(
+    profile: ConnectionProfile,
+    context?: vscode.TextDocument,
+  ): string {
+    const profileConnectionName = this.getConnectionName(profile, context);
+    const accountId = this.authenticationAccountIds.get(profileConnectionName);
+    // Keep SQL sessions isolated when the Microsoft account for this profile changes.
+    return accountId
+      ? `${profileConnectionName}-${accountId}`
+      : profileConnectionName;
+  }
+
+  private async closeBridgeConnection(connectionName: string): Promise<void> {
+    const response = await this.bridgeClient.sendRequest("closeConnection", {
+      connectionName,
+    });
+    if (!response) {
+      throw new Error("No response from bridge");
+    }
+    if (response.$type === "closeConnection" && response.error) {
+      console.error(
+        `Failed to close connection ${connectionName}: ${response.error.message}`,
+      );
+      throw new Error(response.error.message);
+    }
   }
 
   cancelQuery(queryId: string): void {
@@ -126,32 +156,45 @@ export class SqlServerService extends ConnectionService {
     profile: ConnectionProfile,
     context: vscode.TextDocument
   ): Promise<void> {
-    const connectionName = this.getConnectionName(profile, context);
+    const profileConnectionName = this.getConnectionName(profile, context);
+    const connectionName = this.getBridgeConnectionName(profile, context);
 
-    const response = await this.bridgeClient.sendRequest("closeConnection", {
-      connectionName,
-    });
-    if (!response) {
-      throw new Error("No response from bridge");
-    }
-    if (response.$type === "closeConnection" && response.error) {
-      console.error(
-        `Failed to close connection ${connectionName}: ${response.error.message}`
-      );
-      throw new Error(response.error.message);
-    }
+    await this.closeBridgeConnection(connectionName);
+    this.authenticationAccountIds.delete(profileConnectionName);
   }
 
   async createConnectionPool(
     profile: SqlServerConnectionProfile,
     context?: vscode.TextDocument
   ): Promise<void> {
-    const connectionName = this.getConnectionName(profile, context);
+    const profileConnectionName = this.getConnectionName(profile, context);
+    let connectionName = this.getBridgeConnectionName(profile, context);
 
     try {
+      let accessToken: string | undefined;
+      if (profile.authentication === "Active Directory Interactive") {
+        const credentials = await getVscodeSqlAccessToken(
+          profile,
+          vscode.authentication,
+        );
+        const previousAccountId =
+          this.authenticationAccountIds.get(profileConnectionName);
+        if (previousAccountId && previousAccountId !== credentials.accountId) {
+          await this.closeBridgeConnection(
+            this.getBridgeConnectionName(profile, context),
+          );
+        }
+        this.authenticationAccountIds.set(
+          profileConnectionName,
+          credentials.accountId,
+        );
+        accessToken = credentials.accessToken;
+      }
+      connectionName = this.getBridgeConnectionName(profile, context);
       const response = await this.bridgeClient.sendRequest("createConnection", {
         connectionName,
         ...profile,
+        ...(accessToken ? { accessToken } : {}),
       });
       if (!response) {
         throw new Error("No response from bridge");
@@ -175,7 +218,7 @@ export class SqlServerService extends ConnectionService {
     context?: vscode.TextDocument
   ): Promise<SyncQueryResult> {
     await this.createConnectionPool(profile, context);
-    const connectionName = this.getConnectionName(profile, context);
+    const connectionName = this.getBridgeConnectionName(profile, context);
     const response = await this.bridgeClient.sendRequest("executeQuery", {
       connectionName,
       query,
@@ -203,8 +246,8 @@ export class SqlServerService extends ConnectionService {
     callbacks: StreamingCallbacks,
     context?: vscode.TextDocument
   ): Promise<CallableFunction> {
-    const connectionName = this.getConnectionName(profile, context);
     await this.createConnectionPool(profile, context);
+    const connectionName = this.getBridgeConnectionName(profile, context);
 
     this.streamingCallbacks.set(queryId, callbacks);
 

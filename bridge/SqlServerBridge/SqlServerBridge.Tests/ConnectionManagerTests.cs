@@ -42,6 +42,32 @@ public class ConnectionManagerTests
     }
 
     [Fact]
+    public void BuildConnectionString_WithAccessToken_OmitsAuthenticationKeyword()
+    {
+        const string accessToken = "sql-resource-token";
+        var parameters = new CreateConnectionParams
+        {
+            Authentication = AuthenticationMethods.ActiveDirectoryInteractive,
+            AccessToken = accessToken,
+            Host = "jsql-extension-test.database.windows.net",
+            Database = "jsql",
+            Port = 1433
+        };
+
+        var result = ConnectionManager.BuildConnectionString(parameters);
+        var builder = new SqlConnectionStringBuilder(result);
+        using var connection = new SqlConnection(result)
+        {
+            AccessToken = parameters.AccessToken
+        };
+
+        Assert.Equal(SqlAuthenticationMethod.NotSpecified, builder.Authentication);
+        Assert.Empty(builder.UserID);
+        Assert.Empty(builder.Password);
+        Assert.Equal(accessToken, connection.AccessToken);
+    }
+
+    [Fact]
     public void BuildConnectionString_WithActiveDirectoryDefault_UsesDefaultAuthentication()
     {
         var parameters = new CreateConnectionParams

@@ -146,7 +146,7 @@
             "Active Directory Default"
           ],
           "default": "Active Directory Interactive",
-          "description": "Fallback authentication method for Azure SQL connections when the MSSQL connection string omits the method and username/password.",
+          "description": "Fallback authentication method for Azure SQL connections when the MSSQL connection string omits the method and password. Interactive uses VS Code Microsoft sign-in; Default uses the .NET credential chain.",
           "scope": "window"
         },
         "jSql.providers": {

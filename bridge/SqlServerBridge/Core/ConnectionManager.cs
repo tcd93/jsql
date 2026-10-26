@@ -73,8 +73,7 @@ public class ConnectionManager : IConnectionManager, IDisposable
         var connectionString = BuildConnectionString(parameters);
         var connection = new SqlConnection(connectionString);
 
-        if (parameters.Authentication == AuthenticationMethods.ActiveDirectoryInteractive && 
-            parameters.AccessToken != null)
+        if (!string.IsNullOrWhiteSpace(parameters.AccessToken))
         {
             connection.AccessToken = parameters.AccessToken;
         }
@@ -162,38 +161,42 @@ public class ConnectionManager : IConnectionManager, IDisposable
             ApplicationName = parameters.ApplicationName ?? BridgeConstants.DefaultApplicationName
         };
 
-        if (parameters.Authentication == AuthenticationMethods.ActiveDirectoryInteractive)
+        // A supplied access token is mutually exclusive with connection-string authentication modes.
+        if (string.IsNullOrWhiteSpace(parameters.AccessToken))
         {
-            builder.Authentication = SqlAuthenticationMethod.ActiveDirectoryInteractive;
-            if (!string.IsNullOrEmpty(parameters.ClientId))
+            if (parameters.Authentication == AuthenticationMethods.ActiveDirectoryInteractive)
             {
-                builder.UserID = parameters.ClientId;
+                builder.Authentication = SqlAuthenticationMethod.ActiveDirectoryInteractive;
+                if (!string.IsNullOrEmpty(parameters.ClientId))
+                {
+                    builder.UserID = parameters.ClientId;
+                }
             }
-        }
-        else if (parameters.Authentication == AuthenticationMethods.ActiveDirectoryDefault)
-        {
-            builder.Authentication = SqlAuthenticationMethod.ActiveDirectoryDefault;
-        }
-        else if (parameters.Authentication == AuthenticationMethods.IntegratedSecurity ||
-                 (string.IsNullOrEmpty(parameters.Authentication) &&
-                  string.IsNullOrEmpty(parameters.Username) &&
-                  string.IsNullOrEmpty(parameters.Password)))
-        {
-            builder.IntegratedSecurity = true;
-            if (!string.IsNullOrEmpty(parameters.ServerSPN))
+            else if (parameters.Authentication == AuthenticationMethods.ActiveDirectoryDefault)
             {
-                builder.ServerSPN = parameters.ServerSPN;
+                builder.Authentication = SqlAuthenticationMethod.ActiveDirectoryDefault;
             }
-        }
-        else
-        {
-            if (!string.IsNullOrEmpty(parameters.Username))
+            else if (parameters.Authentication == AuthenticationMethods.IntegratedSecurity ||
+                     (string.IsNullOrEmpty(parameters.Authentication) &&
+                      string.IsNullOrEmpty(parameters.Username) &&
+                      string.IsNullOrEmpty(parameters.Password)))
             {
-                builder.UserID = parameters.Username;
+                builder.IntegratedSecurity = true;
+                if (!string.IsNullOrEmpty(parameters.ServerSPN))
+                {
+                    builder.ServerSPN = parameters.ServerSPN;
+                }
             }
-            if (!string.IsNullOrEmpty(parameters.Password))
+            else
             {
-                builder.Password = parameters.Password;
+                if (!string.IsNullOrEmpty(parameters.Username))
+                {
+                    builder.UserID = parameters.Username;
+                }
+                if (!string.IsNullOrEmpty(parameters.Password))
+                {
+                    builder.Password = parameters.Password;
+                }
             }
         }
 
