@@ -98,6 +98,40 @@ describe("VS Code SQL authentication", () => {
     );
   });
 
+  it("continues with generic VS Code auth when profile metadata is absent", async () => {
+    const getSession = vi
+      .fn()
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce(session);
+    const authentication: VscodeAuthenticationApi = {
+      getAccounts: vi.fn(async () => [account]),
+      getSession,
+    };
+
+    await getVscodeSqlAccessToken(
+      createProfile({ username: undefined, tenantId: undefined }),
+      authentication,
+    );
+
+    expect(authentication.getAccounts).not.toHaveBeenCalled();
+    expect(getSession).toHaveBeenNthCalledWith(
+      1,
+      "microsoft",
+      ["https://database.windows.net/.default"],
+      { silent: true },
+    );
+    expect(getSession).toHaveBeenNthCalledWith(
+      2,
+      "microsoft",
+      ["https://database.windows.net/.default"],
+      {
+        createIfNone: {
+          detail: "JSQL needs a Microsoft Entra token to connect to Azure SQL.",
+        },
+      },
+    );
+  });
+
   it("rejects a session for an account different from the MSSQL profile", async () => {
     const mismatchedSession = {
       ...session,

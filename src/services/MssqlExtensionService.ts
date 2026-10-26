@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { DatabaseProvider, SqlServerConnectionProfile } from "../types";
+import { getMssqlConnectionAuthMetadata } from "./MssqlConnectionMetadata";
 import { OutputService } from "./OutputService";
 import { getService } from ".";
 
@@ -204,7 +205,29 @@ export class MssqlExtensionService extends vscode.Disposable {
       return undefined;
     }
 
-    return this.parse(connectionString);
+    const profile = this.parse(connectionString);
+    const savedConnections = vscode.workspace
+      .getConfiguration("mssql")
+      .get<unknown>("connections", []);
+    const authMetadata = getMssqlConnectionAuthMetadata(
+      savedConnections,
+      connectionId,
+    );
+    if (authMetadata) {
+      if (!profile.username && authMetadata.username) {
+        profile.username = authMetadata.username;
+      }
+      if (!profile.tenantId && authMetadata.tenantId) {
+        profile.tenantId = authMetadata.tenantId;
+      }
+    }
+    console.debug("[JSQL Auth] Resolved saved MSSQL auth metadata.", {
+      matchedSavedProfile: Boolean(authMetadata),
+      hasAccountHint: Boolean(authMetadata?.username),
+      hasTenantHint: Boolean(authMetadata?.tenantId),
+    });
+
+    return profile;
   }
 
   private async getConnectionSession(

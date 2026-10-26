@@ -44,15 +44,16 @@ export async function getVscodeSqlAccessToken(
   authentication: VscodeAuthenticationApi,
 ): Promise<VscodeSqlCredentials> {
   const username = profile.username?.trim();
+  const tenantId = profile.tenantId?.trim();
   const scopes = [SQL_RESOURCE_SCOPE];
-  if (profile.tenantId) {
-    scopes.push(`VSCODE_TENANT:${profile.tenantId}`);
+  if (tenantId) {
+    scopes.push(`VSCODE_TENANT:${tenantId}`);
   }
   console.debug(
     "[JSQL Auth] Requesting Azure SQL token through VS Code authentication.",
     {
-      hasProfileUsername: Boolean(username),
-      hasTenantId: Boolean(profile.tenantId),
+      hasAccountHint: Boolean(username),
+      hasTenantHint: Boolean(tenantId),
     },
   );
 
@@ -96,7 +97,9 @@ export async function getVscodeSqlAccessToken(
 
   if (session && sessionMatchesProfile(session, username)) {
     if (!session.accessToken) {
-      console.debug("[JSQL Auth] Silent session returned an empty access token.");
+      console.debug(
+        "[JSQL Auth] Silent session returned an empty access token.",
+      );
       throw new Error(
         "VS Code returned an empty Microsoft Entra access token.",
       );
