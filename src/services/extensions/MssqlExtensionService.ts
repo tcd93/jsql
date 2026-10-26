@@ -1,11 +1,39 @@
 import * as vscode from "vscode";
-import { DatabaseProvider, SqlServerConnectionProfile } from "../types";
-import { getMssqlConnectionAuthMetadata } from "./MssqlConnectionMetadata";
-import { OutputService } from "./OutputService";
-import { getService } from ".";
+import { getService } from "..";
+import { DatabaseProvider, SqlServerConnectionProfile } from "../../types";
+import { OutputService } from "../OutputService";
+
+/**
+ *  The saved profiles in the MSSQL extension are stored in the workspace configuration under "mssql.connections".
+ **/
+interface MssqlSavedConnectionProfile {
+  readonly id: string;
+  readonly user?: string;
+  readonly email?: string;
+  readonly tenantId?: string;
+  readonly database?: string;
+  readonly applicationName?: string;
+  readonly applicationIntent?: "ReadWrite" | "ReadOnly";
+  readonly connectTimeout?: number;
+  readonly commandTimeout?: number;
+  readonly encrypt?: string | boolean;
+  readonly trustServerCertificate?: boolean;
+  readonly profileName?: string;
+  readonly server?: string;
+  readonly port?: number;
+  readonly authenticationType?:
+    | "SqlPassword"
+    | "IntegratedSecurity"
+    | "AzureMFA"
+    | "AzureMFAAndUser"
+    | "AzureMFAAndServicePrincipal"
+    | "AzureMFAAndCertificate"
+    | "AzureMFAAndAccessToken"
+    | "ActiveDirectoryInteractive"
+    | "ActiveDirectoryDefault";
+}
 
 // Uses the public MSSQL shared-connections API (version 1).
-
 interface MssqlSharedConnectionsApi {
   authenticationProviderId: string;
   getActiveEditorConnectionId(accessToken: string): Promise<string | undefined>;
@@ -28,8 +56,9 @@ interface MssqlConnectionSession {
 export class MssqlExtensionService extends vscode.Disposable {
   private readonly mssqlApi: Promise<MssqlSharedConnectionsApi | undefined>;
   private readonly outputService: OutputService;
-  private readonly activeConnectionChangedEmitter =
-    new vscode.EventEmitter<SqlServerConnectionProfile>();
+  private readonly activeConnectionChangedEmitter = new vscode.EventEmitter<
+    SqlServerConnectionProfile | undefined
+  >();
   private readonly connectionChangeSubscription: vscode.Disposable[] = [];
   private isDisposed = false;
 
@@ -67,9 +96,7 @@ export class MssqlExtensionService extends vscode.Disposable {
         this.connectionChangeSubscription.push(
           sharedConnectionsApi.onDidChangeActiveEditorConnection(async () => {
             const profile = await this.getCurrentConnection();
-            if (profile) {
-              this.activeConnectionChangedEmitter.fire(profile);
-            }
+            this.activeConnectionChangedEmitter.fire(profile);
           }),
         );
         this.outputService.writeToOutput("MSSQL extension is active.", "INFO");
@@ -92,15 +119,6 @@ export class MssqlExtensionService extends vscode.Disposable {
 
   public async isExtensionAvailable(): Promise<boolean> {
     return (await this.mssqlApi) !== undefined;
-  }
-
-  public async getActiveMssqlConnection(): Promise<
-    SqlServerConnectionProfile | undefined
-  > {
-    if (!(await this.isExtensionAvailable())) {
-      return undefined;
-    }
-    return this.getCurrentConnection();
   }
 
   /**
@@ -172,7 +190,63 @@ export class MssqlExtensionService extends vscode.Disposable {
   }
 
   /**
-   * Get connection profile from current active editor mssql extension connection
+   * Read the saved connections from the MSSQL extension configuration and return the matching profile for the given connection ID.
+   */
+  private readMssqlSavedConnection(
+    connectionId: string,
+  ): MssqlSavedConnectionProfile | undefined {
+    try {
+      const savedConnections = vscode.workspace
+        .getConfiguration("mssql")
+        .get<MssqlSavedConnectionProfile[]>("connections", []);
+
+      const matched = savedConnections.find((conn) => conn.id === connectionId);
+      if (!matched) {
+        throw new Error(
+          `No saved connection found for connection ID: ${connectionId}`,
+        );
+      }
+      console.debug(
+        `[JSQL Auth] Matched saved MSSQL connection for ID: ${matched.id}, user: ${matched.user}, email: ${matched.email}, tenantId: ${matched.tenantId}`,
+      );
+      return matched;
+    } catch (error) {
+      this.outputService.writeToOutput(
+        `Failed to read saved MSSQL connections: ${error}`,
+        "ERROR",
+      );
+      return undefined;
+    }
+  }
+
+  private update(
+    profile: SqlServerConnectionProfile,
+    extraInfo: MssqlSavedConnectionProfile,
+  ): SqlServerConnectionProfile {
+    return {
+      ...profile,
+      username: profile.username ?? extraInfo.email ?? extraInfo.user,
+      tenantId: profile.tenantId ?? extraInfo.tenantId,
+      database: profile.database ?? extraInfo.database,
+      applicationName: profile.applicationName ?? extraInfo.applicationName,
+      applicationIntent:
+        profile.applicationIntent ?? extraInfo.applicationIntent,
+      connectTimeout: profile.connectTimeout ?? extraInfo.connectTimeout,
+      commandTimeout: profile.commandTimeout ?? extraInfo.commandTimeout,
+      encrypt:
+        profile.encrypt ??
+        (typeof extraInfo.encrypt === "string"
+          ? this.parseBoolean(extraInfo.encrypt)
+          : extraInfo.encrypt),
+      trustServerCertificate:
+        profile.trustServerCertificate ?? extraInfo.trustServerCertificate,
+    };
+  }
+
+  /**
+   * Get connection profile from current active editor mssql extension connection.
+   * This also attempts to resolve the username and tenantId from the saved connections (in workspace config file)
+   * if they are not present in the connection string.
    */
   private async getCurrentConnection(): Promise<
     SqlServerConnectionProfile | undefined
@@ -206,26 +280,11 @@ export class MssqlExtensionService extends vscode.Disposable {
     }
 
     const profile = this.parse(connectionString);
-    const savedConnections = vscode.workspace
-      .getConfiguration("mssql")
-      .get<unknown>("connections", []);
-    const authMetadata = getMssqlConnectionAuthMetadata(
-      savedConnections,
-      connectionId,
-    );
-    if (authMetadata) {
-      if (!profile.username && authMetadata.username) {
-        profile.username = authMetadata.username;
-      }
-      if (!profile.tenantId && authMetadata.tenantId) {
-        profile.tenantId = authMetadata.tenantId;
-      }
+    const savedConnection = this.readMssqlSavedConnection(connectionId);
+
+    if (savedConnection) {
+      return this.update(profile, savedConnection);
     }
-    console.debug("[JSQL Auth] Resolved saved MSSQL auth metadata.", {
-      matchedSavedProfile: Boolean(authMetadata),
-      hasAccountHint: Boolean(authMetadata?.username),
-      hasTenantHint: Boolean(authMetadata?.tenantId),
-    });
 
     return profile;
   }

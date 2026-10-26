@@ -1,14 +1,15 @@
 import * as vscode from "vscode";
 import { ConnectionService } from "./connection";
 import { ConnectionProfileService } from "./ConnectionProfileService";
+import { MssqlExtensionService } from "./extensions";
 import { MessageService } from "./MessageService";
 import { MetadataCacheService } from "./MetadataCacheService";
-import { MssqlExtensionService } from "./MssqlExtensionService";
 import { OutputService } from "./OutputService";
 import { QueryHighlightService } from "./QueryHighlightService";
 import { QueryStateManager } from "./QueryStateManager";
 import { StatusBarService } from "./StatusBarService";
 
+export * from "./extensions";
 export * from "./connection";
 export * from "./factories";
 export * from "./schema";
@@ -17,13 +18,12 @@ export * from "./QueryStateManager";
 export * from "./MessageService";
 export * from "./OutputService";
 export * from "./ConnectionWizard";
-export * from "./MssqlExtensionService";
 export * from "./ConnectionProfileService";
 export * from "./MetadataCacheService";
 export * from "./QueryHighlightService";
 
 type ServiceFactory<T extends vscode.Disposable> = (
-  container: ServiceContainer
+  container: ServiceContainer,
 ) => T;
 type ServiceClass<T extends vscode.Disposable> = abstract new (
   ...args: never[]
@@ -41,7 +41,7 @@ class ServiceContainer {
 
   register<T extends vscode.Disposable>(
     serviceClass: ServiceClass<T>,
-    factory: ServiceFactory<T>
+    factory: ServiceFactory<T>,
   ): void {
     this.factories.set(serviceClass, factory);
   }
@@ -65,7 +65,7 @@ class ServiceContainer {
   }
 
   dispose(): void {
-    this.services.forEach(service => service.dispose());
+    this.services.forEach((service) => service.dispose());
     this.services.clear();
     console.debug("[ServiceContainer] Disposed all services");
   }
@@ -74,7 +74,7 @@ class ServiceContainer {
 let container: ServiceContainer | undefined;
 
 export function initializeServices(
-  context: vscode.ExtensionContext
+  context: vscode.ExtensionContext,
 ): ServiceContainer {
   container = new ServiceContainer(context);
 
@@ -86,7 +86,7 @@ export function initializeServices(
   container.register(MssqlExtensionService, () => new MssqlExtensionService());
   container.register(
     ConnectionProfileService,
-    () => new ConnectionProfileService()
+    () => new ConnectionProfileService(),
   );
   container.register(StatusBarService, () => new StatusBarService());
   container.register(QueryStateManager, () => new QueryStateManager());
@@ -108,18 +108,18 @@ export function initializeServices(
 export function getContext(): vscode.ExtensionContext {
   if (!container) {
     throw new Error(
-      "Services not initialized. Call initializeServices() first."
+      "Services not initialized. Call initializeServices() first.",
     );
   }
   return container.context;
 }
 
 export function getService<T extends vscode.Disposable>(
-  serviceClass: ServiceClass<T>
+  serviceClass: ServiceClass<T>,
 ): T {
   if (!container) {
     throw new Error(
-      "Services not initialized. Call initializeServices() first."
+      "Services not initialized. Call initializeServices() first.",
     );
   }
   return container.get(serviceClass);

@@ -131,7 +131,7 @@ export abstract class BaseEditorProvider
         throw new Error("Connection test failed - no valid response received");
       }
 
-      this.profileService.setActiveConnection(
+      await this.profileService.setActiveConnection(
         focusedContext,
         selectedProfile,
         "Connected"
@@ -143,7 +143,7 @@ export abstract class BaseEditorProvider
           error instanceof Error ? error.message : String(error)
         }`
       );
-      this.profileService.setActiveConnection(
+      await this.profileService.setActiveConnection(
         focusedContext,
         selectedProfile,
         "Error"

@@ -6,6 +6,13 @@ export const handleConnectionChanged = (
   message: ConnectionChangedMessage
 ): void => {
   const { profile } = message.payload;
+  const schemaStore = useSchemaStore.getState();
+  if (!profile) {
+    schemaStore.setLoading(false);
+    schemaStore.clearSchema();
+    schemaStore.setCurrentProfile(null);
+    return;
+  }
   fetchSchema();
-  useSchemaStore.getState().setCurrentProfile(profile);
+  schemaStore.setCurrentProfile(profile);
 };

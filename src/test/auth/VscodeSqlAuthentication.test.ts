@@ -3,7 +3,7 @@ import type * as vscode from "vscode";
 import {
   getVscodeSqlAccessToken,
   VscodeAuthenticationApi,
-} from "../../services/VscodeSqlAuthentication";
+} from "../../auth/VscodeSqlAuthentication";
 import {
   DatabaseProvider,
   type SqlServerConnectionProfile,
@@ -50,7 +50,6 @@ describe("VS Code SQL authentication", () => {
 
     expect(credentials).toEqual({
       accessToken: session.accessToken,
-      accountId: account.id,
     });
     expect(getSession).toHaveBeenCalledOnce();
     expect(getSession).toHaveBeenCalledWith(
@@ -77,7 +76,6 @@ describe("VS Code SQL authentication", () => {
 
     expect(credentials).toEqual({
       accessToken: session.accessToken,
-      accountId: account.id,
     });
     expect(getSession).toHaveBeenNthCalledWith(
       1,
@@ -156,6 +154,44 @@ describe("VS Code SQL authentication", () => {
       "microsoft",
       ["https://database.windows.net/.default"],
       {
+        clearSessionPreference: true,
+        createIfNone: {
+          detail: "JSQL needs a Microsoft Entra token to connect to Azure SQL.",
+        },
+      },
+    );
+  });
+
+  it("does not use a silent session for a different account", async () => {
+    const otherAccountSession = {
+      ...session,
+      account: { id: "other-account", label: "other@example.com" },
+    };
+    const getSession = vi
+      .fn()
+      .mockResolvedValueOnce(otherAccountSession)
+      .mockResolvedValueOnce(session);
+    const authentication: VscodeAuthenticationApi = {
+      getAccounts: vi.fn(async () => []),
+      getSession,
+    };
+
+    await expect(
+      getVscodeSqlAccessToken(createProfile(), authentication),
+    ).resolves.toEqual({ accessToken: session.accessToken });
+
+    expect(getSession).toHaveBeenNthCalledWith(
+      1,
+      "microsoft",
+      ["https://database.windows.net/.default"],
+      { account: undefined, silent: true },
+    );
+    expect(getSession).toHaveBeenNthCalledWith(
+      2,
+      "microsoft",
+      ["https://database.windows.net/.default"],
+      {
+        account: undefined,
         clearSessionPreference: true,
         createIfNone: {
           detail: "JSQL needs a Microsoft Entra token to connect to Azure SQL.",

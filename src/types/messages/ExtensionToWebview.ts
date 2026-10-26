@@ -51,7 +51,7 @@ export interface SchemaDataErrorMessage
  */
 export interface ConnectionChangedMessage
   extends WebviewMessage<{
-    profile: ConnectionProfile;
+    profile?: ConnectionProfile;
     status: ConnectionStatus;
   }> {
   type: "ext.connectionChanged";

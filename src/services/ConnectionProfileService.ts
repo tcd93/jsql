@@ -5,8 +5,9 @@ import {
   DatabaseProvider,
   ConnectionStatus,
 } from "../types";
+import { ConnectionService } from "./connection";
+import { MssqlExtensionService } from "./extensions";
 import { MessageService } from "./MessageService";
-import { MssqlExtensionService } from "./MssqlExtensionService";
 import { getService } from ".";
 
 export class ConnectionProfileService extends vscode.Disposable {
@@ -20,20 +21,31 @@ export class ConnectionProfileService extends vscode.Disposable {
 
   private readonly mssqlExtensionService: MssqlExtensionService;
   private readonly messageService: MessageService;
+  private readonly connectionService: ConnectionService;
   private readonly disposables: vscode.Disposable[] = [];
 
   public constructor() {
     super(() => this.dispose());
     this.mssqlExtensionService = getService(MssqlExtensionService);
     this.messageService = getService(MessageService);
+    this.connectionService = getService(ConnectionService);
 
     this.disposables.push(
       this.mssqlExtensionService.onDidChangeActiveConnection((connection) => {
         const focusedContext =
           getService(BaseEditorProvider)?.getFocusedContext();
-        if (focusedContext) {
-          this.setActiveConnection(focusedContext, connection, "Connected");
+
+        if (!focusedContext) {
+          return;
         }
+
+        void this.setActiveConnection(
+          focusedContext,
+          connection,
+          connection?.name.trim() ? "Connected" : "Disconnected",
+        ).catch((error) => {
+          console.error("Failed to switch the active connection:", error);
+        });
       }),
     );
   }
@@ -97,51 +109,64 @@ export class ConnectionProfileService extends vscode.Disposable {
     }
   }
 
-  public setActiveConnection(
+  public async setActiveConnection(
     context: vscode.TextDocument,
-    connection: ConnectionProfile,
+    connection: ConnectionProfile | undefined,
     connectionStatus: ConnectionStatus,
-  ): void {
+  ): Promise<void> {
     const currentConnection = this.connectionMap.get(context);
     if (!currentConnection) {
       return;
     }
+    const isDisconnected =
+      !connection?.name.trim() ||
+      connection?.provider === DatabaseProvider.None;
+    const disconnectedConnection: ConnectionProfile = {
+      name: "",
+      provider: DatabaseProvider.None,
+      host: "",
+      port: 0,
+    };
+    const nextConnection =
+      !isDisconnected && connection ? connection : disconnectedConnection;
+    const connectionChanged = currentConnection.name !== nextConnection.name;
+    if (
+      connectionChanged &&
+      currentConnection.provider !== DatabaseProvider.None
+    ) {
+      try {
+        await this.connectionService.closeConnection(
+          currentConnection,
+          context,
+        );
+      } catch (error) {
+        console.error("Failed to close the previous connection:", error);
+      }
+    }
+
+    this.connectionMap.set(context, {
+      ...nextConnection,
+      connectionStatus: isDisconnected ? "Disconnected" : connectionStatus,
+    });
+
     // Fire connection changed event when the active connection changes.
     // We separated MSSQL's autocomplete responsibilities from schema fetching
     // so always emit the event when the connection actually changes.
-    if (currentConnection.name !== connection.name) {
+    if (connectionChanged) {
       this.messageService.invoke({
         type: "ext.connectionChanged",
         payload: {
-          profile: connection,
-          status: connectionStatus,
+          profile: isDisconnected ? undefined : nextConnection,
+          status: isDisconnected ? "Disconnected" : connectionStatus,
         },
       });
     }
-    this.connectionMap.set(context, {
-      ...connection,
-      connectionStatus,
-    });
   }
 
   public async getActiveConnection(
     context: vscode.TextDocument,
   ): Promise<ConnectionProfile | undefined> {
-    await this.setActiveMssqlConnection(context);
     return this.connectionMap.get(context);
-  }
-
-  /**
-   * Refresh the active connection on demand for callers that need the latest profile.
-   */
-  private async setActiveMssqlConnection(
-    context: vscode.TextDocument,
-  ): Promise<void> {
-    const mssqlConnection =
-      await this.mssqlExtensionService.getActiveMssqlConnection();
-    if (mssqlConnection) {
-      this.setActiveConnection(context, mssqlConnection, "Connected");
-    }
   }
 
   public getConnectionStatus(
