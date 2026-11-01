@@ -2,6 +2,13 @@
 @import "./Cell.common.module.css";
 
 /* Header Cell specific styles */
+.headerCell {
+  box-sizing: border-box;
+  padding: 0;
+  border-right: 1px solid var(--vscode-panel-border);
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
 .header {
   display: flex;
 

@@ -187,6 +187,7 @@ const HeaderCellFunc = ({
     <>
       <th
         key={header.id}
+        className={styles.headerCell}
         style={{
           width: `calc(var(--header-${header.id}-size) * 1px)`,
           ...offset,
