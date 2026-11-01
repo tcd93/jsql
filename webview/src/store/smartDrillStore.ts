@@ -2,6 +2,8 @@ import { SmartDrillCellSelection, SmartDrillTableRequest } from "@src/types";
 import { Cell, Header, Table } from "@tanstack/react-table";
 import { create } from "zustand";
 
+const ROW_NUMBER_COLUMN_ID = "__row_number__";
+
 interface SmartDrillState {
   selectedCells: Map<string, Cell<unknown[], unknown>>;
   anchorCell: Cell<unknown[], unknown> | null;
@@ -63,6 +65,10 @@ export const useSmartDrillStore = create<SmartDrillState>((set, get) => ({
   activeTabId: null,
 
   selectCell: (cell: Cell<unknown[], unknown>): void => {
+    if (cell.column.id === ROW_NUMBER_COLUMN_ID) {
+      return;
+    }
+
     const cellId = cell.id;
     const currentCells = get().selectedCells;
 
@@ -86,6 +92,10 @@ export const useSmartDrillStore = create<SmartDrillState>((set, get) => ({
   },
 
   toggleCellSelection: (cell: Cell<unknown[], unknown>): void => {
+    if (cell.column.id === ROW_NUMBER_COLUMN_ID) {
+      return;
+    }
+
     const state = get();
     const cellId = cell.id;
     const newSelectedCells = new Map(state.selectedCells);
@@ -123,6 +133,13 @@ export const useSmartDrillStore = create<SmartDrillState>((set, get) => ({
     anchorCell: Cell<unknown[], unknown>,
     targetCell: Cell<unknown[], unknown>
   ): void => {
+    if (
+      anchorCell.column.id === ROW_NUMBER_COLUMN_ID ||
+      targetCell.column.id === ROW_NUMBER_COLUMN_ID
+    ) {
+      return;
+    }
+
     const table = anchorCell.getContext().table;
     const startRowId = anchorCell.row.id;
     const startColumnId = anchorCell.column.id;
@@ -136,7 +153,9 @@ export const useSmartDrillStore = create<SmartDrillState>((set, get) => ({
     const minRowIndex = Math.min(startRowIndex, endRowIndex);
     const maxRowIndex = Math.max(startRowIndex, endRowIndex);
 
-    const leafColumns = table.getVisibleLeafColumns();
+    const leafColumns = table
+      .getVisibleLeafColumns()
+      .filter((column) => column.id !== ROW_NUMBER_COLUMN_ID);
     const startColIndex = leafColumns.findIndex(
       (col) => col.id === startColumnId
     );
@@ -169,6 +188,10 @@ export const useSmartDrillStore = create<SmartDrillState>((set, get) => ({
   },
 
   selectColumn: (header: Header<unknown[], unknown>): void => {
+    if (header.column.id === ROW_NUMBER_COLUMN_ID) {
+      return;
+    }
+
     const table = header.getContext().table;
     const rows = table.getRowModel().rows;
     let firstCell: Cell<unknown[], unknown> | null = null;
@@ -248,7 +271,9 @@ export const useSmartDrillStore = create<SmartDrillState>((set, get) => ({
     }
 
     const rows = table.getRowModel().rows;
-    const leafColumns = table.getVisibleLeafColumns();
+    const leafColumns = table
+      .getVisibleLeafColumns()
+      .filter((column) => column.id !== ROW_NUMBER_COLUMN_ID);
     const currentRowIndex = rows.findIndex((r) => r.id === anchorCell.row.id);
     const currentColIndex = leafColumns.findIndex(
       (col) => col.id === anchorCell.column.id
@@ -323,7 +348,9 @@ export const useSmartDrillStore = create<SmartDrillState>((set, get) => ({
     }
 
     const rows = table.getRowModel().rows;
-    const leafColumns = table.getVisibleLeafColumns();
+    const leafColumns = table
+      .getVisibleLeafColumns()
+      .filter((column) => column.id !== ROW_NUMBER_COLUMN_ID);
 
     // Find the current extent of selection
     let minRowIndex = rows.findIndex((r) => r.id === anchorCell.row.id);
@@ -332,21 +359,30 @@ export const useSmartDrillStore = create<SmartDrillState>((set, get) => ({
       (col) => col.id === anchorCell.column.id
     );
     let maxColIndex = minColIndex;
+    if (minColIndex < 0) {
+      return;
+    }
 
     // If we already have multiple cells selected, find the current bounds
     if (selectedCells.size > 1) {
       const cells = Array.from(selectedCells.values());
-      const rowIndices = cells.map((cell) =>
-        rows.findIndex((r) => r.id === cell.row.id)
-      );
-      const colIndices = cells.map((cell) =>
-        leafColumns.findIndex((col) => col.id === cell.column.id)
-      );
+      const rowIndices = cells
+        .map((cell) => rows.findIndex((r) => r.id === cell.row.id))
+        .filter((index) => index >= 0);
+      const colIndices = cells
+        .map((cell) =>
+          leafColumns.findIndex((col) => col.id === cell.column.id)
+        )
+        .filter((index) => index >= 0);
 
-      minRowIndex = Math.min(...rowIndices);
-      maxRowIndex = Math.max(...rowIndices);
-      minColIndex = Math.min(...colIndices);
-      maxColIndex = Math.max(...colIndices);
+      if (rowIndices.length > 0) {
+        minRowIndex = Math.min(...rowIndices);
+        maxRowIndex = Math.max(...rowIndices);
+      }
+      if (colIndices.length > 0) {
+        minColIndex = Math.min(...colIndices);
+        maxColIndex = Math.max(...colIndices);
+      }
     }
 
     // Extend the selection in the given direction
