@@ -18,9 +18,18 @@ interface TableFixture {
   cells: Map<string, Cell<unknown[], unknown>>;
 }
 
-const createTable = (): TableFixture => {
-  const columnIds = [rowNumberColumnId, "first", "second"];
+const createTable = (
+  columnIds = [rowNumberColumnId, "first", "second"],
+  pinnedColumnIds: string[] = [],
+): TableFixture => {
   const columns = columnIds.map((id) => ({ id }));
+  const pinnedColumns = pinnedColumnIds
+    .map((id) => columns.find((column) => column.id === id))
+    .filter((column) => column !== undefined);
+  const orderedColumns = [
+    ...pinnedColumns,
+    ...columns.filter((column) => !pinnedColumnIds.includes(column.id)),
+  ];
   const cells = new Map<string, Cell<unknown[], unknown>>();
   const rows = ["row-0", "row-1"].map((rowId) => {
     let rowCells: TestCell[] = [];
@@ -43,6 +52,7 @@ const createTable = (): TableFixture => {
 
   const table = {
     getVisibleLeafColumns: () => columns,
+    getLeafHeaders: () => orderedColumns.map((column) => ({ column })),
     getRowModel: () => ({ rows }),
   } as unknown as Table<unknown[]>;
 
@@ -92,6 +102,35 @@ describe("smartDrillStore keyboard navigation", () => {
         (cell) => cell.column.id,
       ),
     ).toEqual(["first"]);
+  });
+
+  it("navigates through pinned columns in their displayed order", () => {
+    const { table, cells } = createTable(
+      [
+        rowNumberColumnId,
+        "employee_id",
+        "full_name",
+        "email_address",
+        "department",
+        "salary",
+      ],
+      ["department"],
+    );
+    const store = useSmartDrillStore.getState();
+
+    store.selectCell(getCell(cells, "row-0:email_address"));
+    expect(store.navigateCell("right", table)?.column.id).toBe("salary");
+
+    useSmartDrillStore
+      .getState()
+      .selectCell(getCell(cells, "row-0:employee_id"));
+    expect(
+      useSmartDrillStore.getState().navigateCell("left", table)?.column.id,
+    ).toBe("department");
+
+    expect(
+      useSmartDrillStore.getState().navigateCell("right", table)?.column.id,
+    ).toBe("employee_id");
   });
 
   it("does not include the row number column in extended selections", () => {

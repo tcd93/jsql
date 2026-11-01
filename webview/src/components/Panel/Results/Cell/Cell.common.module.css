@@ -22,11 +22,12 @@
 }
 
 .virtualCell.pinned {
-  position: sticky;
-  z-index: 1;
+  position: var(--pin-position, relative);
+  left: var(--pin-left, auto);
+  z-index: var(--pin-z-index, auto);
   background: var(--vscode-editor-background);
   border-right: 1px solid var(--vscode-panel-border);
-  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--pin-shadow, none);
 }
 
 .virtualCell.pinned:hover {

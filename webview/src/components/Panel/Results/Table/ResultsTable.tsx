@@ -11,7 +11,6 @@ import {
 } from "@tanstack/react-table";
 import React, {
   useMemo,
-  useEffect,
   useRef,
   useCallback,
   useState,
@@ -144,6 +143,21 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ searchText, tabId }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [schema, Math.min(batchData.length, COLUMN_WIDTH_SAMPLE_SIZE)]);
 
+  const pinnedColumnIds = useMemo(
+    () =>
+      (pinnedColumns ?? []).flatMap((columnName) => {
+        const column = columns.find(
+          (candidate) => candidate.header === columnName,
+        );
+        return column?.id ? [column.id] : [];
+      }),
+    [columns, pinnedColumns],
+  );
+  const columnPinning = useMemo(
+    () => ({ left: pinnedColumnIds, right: [] }),
+    [pinnedColumnIds],
+  );
+
   const prevSchemaRef = useRef(schema);
 
   // Tanstack Table v8 doesn't automatically invalidate aggregation cache when column definitions change
@@ -166,6 +180,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ searchText, tabId }) => {
     state: {
       globalFilter: searchText,
       columnOrder: columnOrder ?? [],
+      columnPinning,
       expanded: expandedState ?? {},
       grouping: groupedColumns,
     },
@@ -196,18 +211,6 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ searchText, tabId }) => {
     autoResetExpanded: false,
   });
 
-  useEffect(() => {
-    const pinnedColumnIds = pinnedColumns?.map((header) => {
-      const column = table
-        .getAllColumns()
-        .find((col) => col.columnDef.header === header);
-      return column ? column.id : "";
-    });
-    table?.setColumnPinning({
-      left: pinnedColumnIds,
-    });
-  }, [tabId, table, pinnedColumns]);
-
   // Get table behavior (scrolling) from custom hook
   const { scrollParentRef, virtuosoRef } = useTableBehavior(table);
   const [customScrollParent, setCustomScrollParent] =
@@ -232,8 +235,22 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ searchText, tabId }) => {
       colSizes[`--col-${header.column.id}-size`] = header.column.getSize();
       return colSizes;
     },
-    {} as Record<string, number>,
+    {} as Record<string, number | string>,
   );
+  const pinnedColumnOffsets: Record<string, string> = {};
+  const pinnedCellRules: string[] = [];
+  let pinnedColumnOffset = 0;
+  for (const column of table.getLeftVisibleLeafColumns()) {
+    const dataIndex = column.columnDef.meta?.["dataIndex"];
+    if (typeof dataIndex === "number") {
+      const offsetVariable = `--pinned-column-offset-${dataIndex}`;
+      pinnedColumnOffsets[offsetVariable] = `${pinnedColumnOffset}px`;
+      pinnedCellRules.push(
+        `.${styles.resultsTable} td[data-column-index="${dataIndex}"] { --pin-position: sticky; --pin-left: var(${offsetVariable}); --pin-z-index: 1; --pin-shadow: 2px 0 4px rgba(0, 0, 0, 0.2); }`,
+      );
+    }
+    pinnedColumnOffset += column.getSize();
+  }
 
   // Let the table size itself to its columns' natural width instead of always
   // stretching to fill the container (see ResultsTable.module.css)
@@ -284,59 +301,66 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ searchText, tabId }) => {
       tabId,
       columns,
       columnOrder,
+      pinnedColumnIds,
       groupedColumns,
       expandedState,
     ],
   );
 
   return (
-    <div
-      ref={setScrollContainerRef}
-      className={`${styles.resultsTable}`}
-      style={{
-        ...columnSizeVars,
-        ...tableWidthStyle,
-      }}
-      tabIndex={0}
-      role="grid"
-      aria-label="Data table with copyable cells"
-    >
-      {customScrollParent && (
-        <>
-          <TableVirtuoso
-            ref={virtuosoRef}
-            data={filteredRows}
-            overscan={300}
-            components={virtuosoComponents}
-            fixedHeaderContent={fixedHeaderContent}
-            fixedFooterContent={fixedFooterContent}
-            customScrollParent={customScrollParent}
-            itemContent={itemContent}
-          />
-        </>
+    <>
+      {pinnedCellRules.length > 0 && (
+        <style>{pinnedCellRules.join("\n")}</style>
       )}
-      {schema &&
-        schema.length > 0 &&
-        stats?.complete &&
-        searchText.trim() &&
-        filteredRows.length === 0 && (
-          <div className={styles.emptyState}>No rows match your search.</div>
+      <div
+        ref={setScrollContainerRef}
+        className={`${styles.resultsTable}`}
+        style={{
+          ...columnSizeVars,
+          ...pinnedColumnOffsets,
+          ...tableWidthStyle,
+        }}
+        tabIndex={0}
+        role="grid"
+        aria-label="Data table with copyable cells"
+      >
+        {customScrollParent && (
+          <>
+            <TableVirtuoso
+              ref={virtuosoRef}
+              data={filteredRows}
+              overscan={300}
+              components={virtuosoComponents}
+              fixedHeaderContent={fixedHeaderContent}
+              fixedFooterContent={fixedFooterContent}
+              customScrollParent={customScrollParent}
+              itemContent={itemContent}
+            />
+          </>
         )}
-      {(!schema || schema.length === 0) && stats?.complete && (
-        <div className={styles.emptyState}>
-          <p>
-            Query completed with {stats.rows} rows ({stats.batches} batch
-            {stats.batches !== 1 ? "es" : ""})
-          </p>
-          {validAffectedRows.length > 0 && (
-            <p>Affected {validAffectedRows.join(", ")} rows</p>
+        {schema &&
+          schema.length > 0 &&
+          stats?.complete &&
+          searchText.trim() &&
+          filteredRows.length === 0 && (
+            <div className={styles.emptyState}>No rows match your search.</div>
           )}
-        </div>
-      )}
-      {(!schema || schema.length === 0) && !stats?.complete && (
-        <div className={styles.emptyState}>No data to display</div>
-      )}
-    </div>
+        {(!schema || schema.length === 0) && stats?.complete && (
+          <div className={styles.emptyState}>
+            <p>
+              Query completed with {stats.rows} rows ({stats.batches} batch
+              {stats.batches !== 1 ? "es" : ""})
+            </p>
+            {validAffectedRows.length > 0 && (
+              <p>Affected {validAffectedRows.join(", ")} rows</p>
+            )}
+          </div>
+        )}
+        {(!schema || schema.length === 0) && !stats?.complete && (
+          <div className={styles.emptyState}>No data to display</div>
+        )}
+      </div>
+    </>
   );
 };
 

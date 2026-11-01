@@ -168,7 +168,6 @@ const DataCellFunc = ({
     [selectCell, cell, setContextMenu],
   );
 
-  const isPinned = column.getIsPinned();
   const isGrouped = cell.getIsGrouped();
   const isColumnGrouped = column.getIsGrouped();
   const isRowGrouped = cell.row.getIsGrouped();
@@ -195,14 +194,6 @@ const DataCellFunc = ({
     return formattedValue;
   };
 
-  const offset: React.CSSProperties = isPinned
-    ? {
-        left: `${column.getStart("left")}px`,
-        position: "sticky",
-        zIndex: 1,
-      }
-    : {};
-
   return (
     <>
       <td
@@ -216,13 +207,13 @@ const DataCellFunc = ({
             : isUnmatched
               ? styles.addedCell
               : ""
-        } ${isPinned ? styles.pinned : ""} ${
-          isGrouped ? styles.groupedCell : ""
-        }`}
+        } ${styles.pinned} ${isGrouped ? styles.groupedCell : ""}`}
+        data-column-index={
+          typeof dataColumnIndex === "number" ? dataColumnIndex : undefined
+        }
         title={comparisonTitle}
         style={{
           width: `calc(var(--col-${column.id}-size) * 1px)`,
-          ...offset,
         }}
         onPointerDown={handleCellPointerDown}
         onContextMenu={handleContextMenu}

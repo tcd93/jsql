@@ -4,6 +4,14 @@ import { create } from "zustand";
 
 const ROW_NUMBER_COLUMN_ID = "__row_number__";
 
+const getNavigableColumns = (
+  table: Table<unknown[]>
+): ReturnType<Table<unknown[]>["getVisibleLeafColumns"]> =>
+  table
+    .getLeafHeaders()
+    .map((header) => header.column)
+    .filter((column) => column.id !== ROW_NUMBER_COLUMN_ID);
+
 interface SmartDrillState {
   selectedCells: Map<string, Cell<unknown[], unknown>>;
   anchorCell: Cell<unknown[], unknown> | null;
@@ -153,9 +161,7 @@ export const useSmartDrillStore = create<SmartDrillState>((set, get) => ({
     const minRowIndex = Math.min(startRowIndex, endRowIndex);
     const maxRowIndex = Math.max(startRowIndex, endRowIndex);
 
-    const leafColumns = table
-      .getVisibleLeafColumns()
-      .filter((column) => column.id !== ROW_NUMBER_COLUMN_ID);
+    const leafColumns = getNavigableColumns(table);
     const startColIndex = leafColumns.findIndex(
       (col) => col.id === startColumnId
     );
@@ -271,9 +277,7 @@ export const useSmartDrillStore = create<SmartDrillState>((set, get) => ({
     }
 
     const rows = table.getRowModel().rows;
-    const leafColumns = table
-      .getVisibleLeafColumns()
-      .filter((column) => column.id !== ROW_NUMBER_COLUMN_ID);
+    const leafColumns = getNavigableColumns(table);
     const currentRowIndex = rows.findIndex((r) => r.id === anchorCell.row.id);
     const currentColIndex = leafColumns.findIndex(
       (col) => col.id === anchorCell.column.id
@@ -348,9 +352,7 @@ export const useSmartDrillStore = create<SmartDrillState>((set, get) => ({
     }
 
     const rows = table.getRowModel().rows;
-    const leafColumns = table
-      .getVisibleLeafColumns()
-      .filter((column) => column.id !== ROW_NUMBER_COLUMN_ID);
+    const leafColumns = getNavigableColumns(table);
 
     // Find the current extent of selection
     let minRowIndex = rows.findIndex((r) => r.id === anchorCell.row.id);

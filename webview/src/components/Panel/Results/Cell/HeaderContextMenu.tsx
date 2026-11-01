@@ -5,6 +5,7 @@ import { useMenuContext } from "../../../../hooks/useMenuContext";
 import { copySelectedCells } from "../../../../services/ClipboardService";
 import { useGlobalContextMenuStore } from "../../../../store/globalContextMenuStore";
 import { useSmartDrillStore } from "../../../../store/smartDrillStore";
+import { useTabStore } from "../../../../store/tabStore";
 import styles from "./CellContextMenu.module.css";
 
 interface CellContextMenuProps {
@@ -27,6 +28,12 @@ export const HeaderContextMenu: React.FC<CellContextMenuProps> = ({
   const closeContextMenu = useGlobalContextMenuStore(
     (state) => state.closeContextMenu
   );
+  const activeTab = useTabStore((state) => state.getActiveTab());
+  const pinnedColumns = activeTab?.pinnedColumns ?? [];
+  const updateTab = useTabStore((state) => state.updateTab);
+  const columnName =
+    header.column.columnDef.header?.toString() ?? header.column.id;
+  const isPinned = pinnedColumns.includes(columnName);
 
   const handleCopyColumn = async (): Promise<void> => {
     selectColumn(header);
@@ -35,9 +42,6 @@ export const HeaderContextMenu: React.FC<CellContextMenuProps> = ({
   };
 
   const handleCopyColumnName = async (): Promise<void> => {
-    const columnName =
-      header.column.columnDef.header?.toString() ?? header.column.id;
-
     try {
       await navigator.clipboard.writeText(columnName);
     } catch (error) {
@@ -45,6 +49,20 @@ export const HeaderContextMenu: React.FC<CellContextMenuProps> = ({
     } finally {
       closeContextMenu();
     }
+  };
+
+  const handleTogglePin = (): void => {
+    if (!activeTab) {
+      closeContextMenu();
+      return;
+    }
+
+    updateTab(activeTab.id, {
+      pinnedColumns: isPinned
+        ? pinnedColumns.filter((name) => name !== columnName)
+        : [...pinnedColumns, columnName],
+    });
+    closeContextMenu();
   };
 
   const menu = (
@@ -72,6 +90,14 @@ export const HeaderContextMenu: React.FC<CellContextMenuProps> = ({
           onClick={handleCopyColumn}
         >
           Copy Column
+        </button>
+        <button
+          className={styles.menuItem}
+          role="menuitemcheckbox"
+          aria-checked={isPinned}
+          onClick={handleTogglePin}
+        >
+          {isPinned ? "Unpin Column" : "Pin Column"}
         </button>
       </div>
     </>
