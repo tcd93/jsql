@@ -76,33 +76,25 @@ export const useTableBehavior = (
       }
 
       // Handle horizontal scrolling
-      if (columnId && scrollParentRef.current) {
-        const column = table
-          .getLeafHeaders()
-          .find((col) => col.id === columnId);
+      const scrollElement = scrollParentRef.current;
+      const column = columnId ? table.getColumn(columnId) : undefined;
+      if (column && scrollElement) {
+        const currentScrollLeft = scrollElement.scrollLeft;
+        const viewportRight = currentScrollLeft + scrollElement.clientWidth;
+        const columnLeft = column.getStart();
+        const columnRight = columnLeft + column.getSize();
 
-        // Check if column is visible in viewport
-        const columnLeft = column?.getStart() ?? 0;
-        const columnRight = columnLeft + (column?.getSize() ?? 0);
-        const viewportLeft = scrollParentRef.current.scrollLeft ?? 0;
-        const viewportRight =
-          viewportLeft + scrollParentRef.current.clientWidth;
-
-        let newScrollLeft = scrollParentRef.current.scrollLeft;
-
-        // If column is to the left of viewport, scroll left
-        if (columnLeft < viewportLeft) {
+        let newScrollLeft = currentScrollLeft;
+        if (columnLeft < currentScrollLeft) {
           newScrollLeft = columnLeft;
-        }
-        // If column is to the right of viewport, scroll right
-        else if (columnRight > viewportRight) {
-          newScrollLeft = columnRight - scrollParentRef.current.clientWidth;
+        } else if (columnRight > viewportRight) {
+          newScrollLeft = columnRight - scrollElement.clientWidth;
         }
 
-        if (newScrollLeft !== scrollParentRef.current.scrollLeft) {
-          scrollParentRef.current.scrollTo({
+        if (newScrollLeft !== currentScrollLeft) {
+          scrollElement.scrollTo({
             left: Math.max(0, newScrollLeft),
-            behavior: "smooth",
+            behavior: "auto",
           });
         }
       }
