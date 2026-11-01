@@ -106,23 +106,23 @@ export const formatCell = (
 
     // Date types
     case "date":
-      try {
-        const date = new Date(stringValue);
-        // Always return just the date part, even if SQL Server returns datetime
-        return date.toISOString().split("T")[0]; // yyyy-mm-dd format
-      } catch {
-        // If it's already in yyyy-mm-dd format, return as-is
-        if (stringValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
-          return stringValue;
-        }
-        return stringValue;
-      }
+      // SQL dates are calendar values, not instants in a timezone.
+      return stringValue.match(/^\d{4}-\d{2}-\d{2}/)?.[0] ?? stringValue;
 
     // DateTime types
     case "datetime":
     case "datetime2":
     case "smalldatetime":
     case "timestamp":
+    {
+      // SQL Server DateTime values have no timezone; preserve their wall-clock time.
+      const dateTimeParts = stringValue.match(
+        /^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}:\d{2})(?:\.\d+)?$/,
+      );
+      if (dateTimeParts) {
+        return `${dateTimeParts[1]} ${dateTimeParts[2]}`;
+      }
+
       try {
         const date = new Date(stringValue);
         return date
@@ -132,6 +132,7 @@ export const formatCell = (
       } catch {
         return stringValue;
       }
+    }
 
     // Time type
     case "time":
