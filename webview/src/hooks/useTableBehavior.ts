@@ -112,6 +112,14 @@ export const useTableBehavior = (
   // Handle keyboard shortcuts and navigation
   const handleKeyDown = useCallback(
     async (event: KeyboardEvent): Promise<void> => {
+      if (event.key === "Escape") {
+        const scrollElement = scrollParentRef.current;
+        if (scrollElement && scrollElement === document.activeElement) {
+          scrollElement.blur();
+        }
+        return;
+      }
+
       if ((event.ctrlKey || event.metaKey) && event.key === "c") {
         // Only intercept Ctrl+C if there are selected cells in smart drill store
         // Otherwise, allow default browser copy behavior (for footer cells, text selection, etc.)
