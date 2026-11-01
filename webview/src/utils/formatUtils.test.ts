@@ -12,6 +12,20 @@ describe("formatCell", () => {
     );
   });
 
+  it("displays timezone-qualified timestamps in local time", () => {
+    const instant = new Date("2026-11-01T17:12:38.942Z");
+    const pad = (part: number): string => String(part).padStart(2, "0");
+    const expected = `${String(instant.getFullYear()).padStart(4, "0")}-${pad(
+      instant.getMonth() + 1,
+    )}-${pad(instant.getDate())} ${pad(instant.getHours())}:${pad(
+      instant.getMinutes(),
+    )}:${pad(instant.getSeconds())}`;
+
+    expect(
+      formatCell("2026-11-01T17:12:38.942Z", "TIMESTAMP"),
+    ).toBe(expected);
+  });
+
   it("returns unrecognized datetime values unchanged", () => {
     expect(formatCell("not-a-date", "DateTime")).toBe("not-a-date");
   });

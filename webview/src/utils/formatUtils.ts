@@ -123,6 +123,20 @@ export const formatCell = (
         return `${dateTimeParts[1]} ${dateTimeParts[2]}`;
       }
 
+      if (/[zZ]|[+-]\d{2}:\d{2}$/.test(stringValue)) {
+        const date = new Date(stringValue);
+        if (Number.isNaN(date.getTime())) {
+          return stringValue;
+        }
+
+        const pad = (part: number): string => String(part).padStart(2, "0");
+        return `${String(date.getFullYear()).padStart(4, "0")}-${pad(
+          date.getMonth() + 1,
+        )}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(
+          date.getMinutes(),
+        )}:${pad(date.getSeconds())}`;
+      }
+
       try {
         const date = new Date(stringValue);
         return date
