@@ -9,12 +9,7 @@ import {
   Row,
   Cell,
 } from "@tanstack/react-table";
-import React, {
-  useMemo,
-  useRef,
-  useCallback,
-  useState,
-} from "react";
+import React, { useMemo, useRef, useCallback, useState } from "react";
 import { TableComponents, TableVirtuoso } from "react-virtuoso";
 import { useShallow } from "zustand/react/shallow";
 import { useBatchedData } from "../../../../hooks/useBatchedData";
@@ -246,7 +241,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ searchText, tabId }) => {
       const offsetVariable = `--pinned-column-offset-${dataIndex}`;
       pinnedColumnOffsets[offsetVariable] = `${pinnedColumnOffset}px`;
       pinnedCellRules.push(
-        `.${styles.resultsTable} td[data-column-index="${dataIndex}"] { --pin-position: sticky; --pin-left: var(${offsetVariable}); --pin-z-index: 1; --pin-shadow: 2px 0 4px rgba(0, 0, 0, 0.2); }`,
+        `.${styles.resultsTable} td[data-column-index="${dataIndex}"] { --pin-position: sticky; --pin-left: var(${offsetVariable}); --pin-z-index: 1; --pin-background: var(--vscode-editorWidget-background, var(--vscode-editor-background)); --pin-shadow: 4px 0 8px rgba(0, 0, 0, 0.3); }`,
       );
     }
     pinnedColumnOffset += column.getSize();

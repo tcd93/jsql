@@ -25,7 +25,10 @@
   position: var(--pin-position, relative);
   left: var(--pin-left, auto);
   z-index: var(--pin-z-index, auto);
-  background: var(--vscode-editor-background);
+  background: var(
+    --pin-background,
+    var(--vscode-editor-background)
+  );
   border-right: 1px solid var(--vscode-panel-border);
   box-shadow: var(--pin-shadow, none);
 }

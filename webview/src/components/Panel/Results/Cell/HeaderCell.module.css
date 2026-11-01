@@ -21,7 +21,12 @@
 
   &.pinned {
     z-index: 20;
-    background-color: var(--vscode-list-inactiveSelectionBackground) !important;
+    background-color: var(
+      --vscode-editorWidget-background,
+      var(--vscode-list-inactiveSelectionBackground)
+    ) !important;
+    border-right: 1px solid var(--vscode-focusBorder);
+    box-shadow: 4px 0 8px rgba(0, 0, 0, 0.3);
   }
 
   &.dragOver {
